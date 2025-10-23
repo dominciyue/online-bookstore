@@ -1,0 +1,48 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frontend build outputs
+dist/
+build/
+.cache/
+*.log
+
+# Env files
+.env
+.env.local
+.env.development.local
+.env.production.local
+
+# IDE / editor
+.vscode/
+.idea/
+*.iml
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Backend (Maven / Spring)
+online-bookstore-backend/target/
+online-bookstore-backend/.mvn/wrapper/maven-wrapper.jar
+online-bookstore-backend/.mvn/wrapper/maven-wrapper.properties
+online-bookstore-backend/mvnw
+online-bookstore-backend/mvnw.cmd
+
+# Backend logs & tmp
+online-bookstore-backend/*.log
+online-bookstore-backend/logs/
+online-bookstore-backend/tmp/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+
+# Others
+coverage/
+reports/
