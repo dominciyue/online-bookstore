@@ -75,3 +75,40 @@ git checkout -b feature/xxx
 # 开发
 git push -u origin feature/xxx
 ```
+
+## 分支开发流程
+```bash
+# 刷新主分支
+git checkout main
+git pull origin main
+
+# 新建功能分支
+git checkout -b feature/your-feature-name
+
+# 开发 & 提交
+git add .
+git commit -m "feat: your feature description"
+
+# 推送并建立远程追踪
+git push -u origin feature/your-feature-name
+
+# 后续增量直接
+git push
+
+# 合并（推荐在 GitHub 发起 Pull Request）
+# 或本地：
+git checkout main
+git pull origin main
+git merge feature/your-feature-name
+git push
+
+# 删除分支（合并后可选）
+git branch -d feature/your-feature-name
+git push origin --delete feature/your-feature-name
+```
+
+分支命名建议：
+- feature/xxx 新功能
+- fix/xxx 修复
+- chore/xxx 构建与脚手架
+- refactor/xxx 重构
