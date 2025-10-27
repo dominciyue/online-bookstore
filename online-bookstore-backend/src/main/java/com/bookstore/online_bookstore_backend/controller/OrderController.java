@@ -233,9 +233,10 @@ public class OrderController {
             Book book = bookDao.findById(bookId)
                 .orElseThrow(() -> new IllegalArgumentException("未找到书籍ID: " + bookId));
 
-            if (book.getStock() < quantity) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "书籍库存不足: " + book.getTitle()));
-            }
+            // 检查库存（注意：这里不需要注入 inventoryService，因为订单服务会检查）
+            // if (book.getStock() < quantity) {
+            //     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "书籍库存不足: " + book.getTitle()));
+            // }
 
             // 构建Kafka消息
             String requestId = UUID.randomUUID().toString();

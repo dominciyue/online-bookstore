@@ -14,17 +14,64 @@ class WebSocketService {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectInterval = 3000;
+    this.userSubscribed = false;
+    this.eventHandlers = new Map(); // 简单事件总线 (CONNECTION_STATUS / ORDER_STATUS_UPDATE)
+  }
+
+  // 事件发布
+  publish(event, data) {
+    const handlers = this.eventHandlers.get(event);
+    if (handlers) {
+      handlers.forEach(fn => {
+        try { fn(data); } catch (e) { console.error('[WebSocketService] 事件回调异常', event, e); }
+      });
+    }
+  }
+
+  // 事件订阅
+  subscribe(event, handler) {
+    if (!this.eventHandlers.has(event)) {
+      this.eventHandlers.set(event, []);
+    }
+    this.eventHandlers.get(event).push(handler);
+    return () => {
+      const arr = this.eventHandlers.get(event);
+      if (!arr) return;
+      const idx = arr.indexOf(handler);
+      if (idx > -1) arr.splice(idx, 1);
+    };
+  }
+
+  ensureUserSubscription(userId) {
+    if (!this.stompClient || !this.stompClient.connected) return;
+    if (this.userSubscribed) return;
+    this.stompClient.subscribe(`/user/${userId}/queue/order-updates`, (message) => {
+      try {
+        const orderUpdate = JSON.parse(message.body);
+        this.publish('ORDER_STATUS_UPDATE', orderUpdate);
+      } catch (e) {
+        console.error('订单更新解析失败:', e);
+      }
+    });
+    this.userSubscribed = true;
   }
 
   /**
    * 连接到WebSocket服务器
    * @param {string} userId - 用户ID（确保是字符串类型）
-   * @param {function} onConnect - 连接成功回调
-   * @param {function} onError - 连接错误回调
+   * @param {object} callbacks - 回调对象
    */
-  connect(userId, onConnect, onError) {
-    if (this.connected) {
+  connect(userId, callbacks) {
+    const onConnectCb = callbacks?.onConnect || callbacks?.success;
+    const onErrorCb = callbacks?.onError || callbacks?.error;
+    const onCloseCb = callbacks?.onClose;
+
+    if (this.stompClient && this.stompClient.connected) {
       console.log('WebSocket already connected');
+      this.connected = true;
+      this.ensureUserSubscription(userId);
+      this.publish('CONNECTION_STATUS', { connected: true, reuse: true });
+      if (onConnectCb) onConnectCb();
       return;
     }
 
@@ -51,32 +98,36 @@ class WebSocketService {
           console.log('WebSocket连接成功:', frame);
           this.connected = true;
           this.reconnectAttempts = 0;
+          this.publish('CONNECTION_STATUS', { connected: true });
+          this.ensureUserSubscription(userIdStr);
           
-          // 订阅用户私有队列（使用字符串类型的userId）
-          this.subscribeToUserQueue(userIdStr);
-          
-          if (onConnect) {
-            onConnect(frame);
+          if (onConnectCb) {
+            onConnectCb(frame);
           }
         },
         onStompError: (error) => {
           console.error('STOMP错误:', error);
           this.connected = false;
-          if (onError) {
-            onError(error);
+          this.userSubscribed = false;
+          this.publish('CONNECTION_STATUS', { connected: false, error: error.headers });
+          if (onErrorCb) {
+            onErrorCb(error);
           }
         },
         onWebSocketError: (error) => {
           console.error('WebSocket错误:', error);
           this.connected = false;
-          if (onError) {
-            onError(error);
+          if (onErrorCb) {
+            onErrorCb(error);
           }
         },
         onWebSocketClose: (event) => {
           console.log('WebSocket连接关闭:', event);
           this.connected = false;
-          this.attemptReconnect(userIdStr, onConnect, onError);
+          this.userSubscribed = false;
+          this.publish('CONNECTION_STATUS', { connected: false });
+          if (onCloseCb) onCloseCb();
+          this.attemptReconnect(userIdStr, onConnectCb, onErrorCb);
         }
       });
 
@@ -85,8 +136,8 @@ class WebSocketService {
 
     } catch (error) {
       console.error('WebSocket连接失败:', error);
-      if (onError) {
-        onError(error);
+      if (onErrorCb) {
+        onErrorCb(error);
       }
     }
   }
@@ -171,7 +222,7 @@ class WebSocketService {
     console.log(`尝试重连WebSocket (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
 
     setTimeout(() => {
-      this.connect(userId, onConnect, onError);
+      this.connect(userId, { onConnect, onError });
     }, this.reconnectInterval);
   }
 
@@ -192,6 +243,7 @@ class WebSocketService {
       
       this.connected = false;
       this.stompClient = null;
+      this.userSubscribed = false;
     }
   }
 
@@ -200,7 +252,7 @@ class WebSocketService {
    * @returns {boolean} 是否已连接
    */
   isConnected() {
-    return this.connected && this.stompClient;
+    return !!(this.stompClient && this.stompClient.connected) || this.connected;
   }
 
   /**

@@ -26,6 +26,9 @@ public class OrderService {
     private final OrderItemDao orderItemDao;
     private final CartService cartService; // 用于获取购物车项和清空购物车
     private final BookDao bookDao; // Use BookDao
+    
+    @Autowired
+    private BookInventoryService inventoryService; // 库存服务
 
     @Autowired
     public OrderService(OrderDao orderDao, OrderItemDao orderItemDao, CartService cartService, 
@@ -79,17 +82,21 @@ public class OrderService {
             Book book = bookDao.findById(cartItem.getBookId())
                     .orElseThrow(() -> new RuntimeException("未找到书籍ID: " + cartItem.getBookId()));
 
-            if (book.getStock() < cartItem.getQuantity()) {
-                throw new RuntimeException("书籍库存不足: " + book.getTitle() + " (需求: " + cartItem.getQuantity() + ", 库存: " + book.getStock() + ")");
+            // 检查库存
+            Integer currentStock = inventoryService.getStock(cartItem.getBookId());
+            if (currentStock < cartItem.getQuantity()) {
+                throw new RuntimeException("书籍库存不足: " + book.getTitle() + " (需求: " + cartItem.getQuantity() + ", 库存: " + currentStock + ")");
             }
 
             OrderItem orderItem = new OrderItem(order, book, cartItem.getQuantity(), book.getPrice());
             orderItems.add(orderItem);
             totalPrice = totalPrice.add(book.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
             
-            // 更新库存
-            book.setStock(book.getStock() - cartItem.getQuantity());
-            bookDao.save(book);
+            // 减少库存
+            boolean success = inventoryService.reduceStock(cartItem.getBookId(), cartItem.getQuantity());
+            if (!success) {
+                throw new RuntimeException("减少库存失败: " + book.getTitle());
+            }
         }
 
         // 保存OrderItem记录
@@ -111,8 +118,10 @@ public class OrderService {
         Book book = bookDao.findById(bookId)
                 .orElseThrow(() -> new RuntimeException("未找到书籍ID: " + bookId + "，无法创建订单。"));
 
-        if (book.getStock() < quantity) {
-            throw new RuntimeException("书籍库存不足: " + book.getTitle() + " (需求: " + quantity + ", 库存: " + book.getStock() + ")");
+        // 检查库存
+        Integer currentStock = inventoryService.getStock(bookId);
+        if (currentStock < quantity) {
+            throw new RuntimeException("书籍库存不足: " + book.getTitle() + " (需求: " + quantity + ", 库存: " + currentStock + ")");
         }
 
         // 1. 创建Order记录
@@ -140,7 +149,9 @@ public class OrderService {
             Book book = bookDao.findById(bookId)
                     .orElseThrow(() -> new RuntimeException("未找到书籍ID: " + bookId));
 
-            if (book.getStock() < quantity) {
+            // 检查库存
+            Integer currentStock = inventoryService.getStock(bookId);
+            if (currentStock < quantity) {
                 throw new RuntimeException("书籍库存不足: " + book.getTitle());
             }
 
@@ -148,9 +159,11 @@ public class OrderService {
             orderItems.add(orderItem);
             totalPrice = totalPrice.add(book.getPrice().multiply(BigDecimal.valueOf(quantity)));
 
-            // 更新库存
-            book.setStock(book.getStock() - quantity);
-            bookDao.save(book);
+            // 减少库存
+            boolean success = inventoryService.reduceStock(bookId, quantity);
+            if (!success) {
+                throw new RuntimeException("减少库存失败: " + book.getTitle());
+            }
         }
 
         // 保存OrderItem记录
