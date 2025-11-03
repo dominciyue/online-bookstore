@@ -1,0 +1,12 @@
+[submodule "microservices/author-service"]
+	path = microservices/author-service
+	url = https://github.com/dominciyue/author-service.git
+[submodule "microservices/eureka-server"]
+	path = microservices/eureka-server
+	url = https://github.com/dominciyue/eureka-server.git
+[submodule "microservices/gateway-service"]
+	path = microservices/gateway-service
+	url = https://github.com/dominciyue/gateway-service.git
+[submodule "microservices/price-calculator-service"]
+	path = microservices/price-calculator-service
+	url = https://github.com/dominciyue/price-calculator-service.git
