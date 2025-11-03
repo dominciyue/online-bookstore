@@ -1,6 +1,6 @@
 import apiClient from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/api/users';
+const API_BASE_URL = 'http://localhost:8082/api/users';
 
 // Get current user's full details
 const getCurrentUserDetails = async () => {

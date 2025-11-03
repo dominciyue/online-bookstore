@@ -201,7 +201,7 @@ const Profile = () => {
       <Col xs={24} md={10} lg={8}>
         <Card title="账户信息">
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <Avatar size={100} src={user?.avatarUrl ? `http://localhost:8080${user.avatarUrl}` : undefined} icon={!user?.avatarUrl && <UserOutlined />} />
+                <Avatar size={100} src={user?.avatarUrl ? `http://localhost:8082${user.avatarUrl}` : undefined} icon={!user?.avatarUrl && <UserOutlined />} />
                 <Upload 
                     name="avatar"
                     showUploadList={false} 

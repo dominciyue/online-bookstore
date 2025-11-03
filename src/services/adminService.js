@@ -1,6 +1,6 @@
 import apiClient from './apiClient';
 
-const API_ADMIN_URL = 'http://localhost:8080/api/admin';
+const API_ADMIN_URL = 'http://localhost:8082/api/admin';
 
 // Get all users (for admin)
 const getAllUsers = async () => {

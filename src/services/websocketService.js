@@ -78,7 +78,7 @@ class WebSocketService {
     // 确保userId是字符串类型
     const userIdStr = String(userId);
     console.log('尝试连接WebSocket，用户ID:', userIdStr);
-    console.log('WebSocket URL: http://localhost:8080/ws');
+    console.log('WebSocket URL: http://localhost:8082/ws');
 
     try {
       // 使用token认证
@@ -87,7 +87,7 @@ class WebSocketService {
 
       // 创建STOMP客户端
       this.stompClient = new Client({
-        webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+        webSocketFactory: () => new SockJS('http://localhost:8082/ws'),
         connectHeaders: {
           'Authorization': `Bearer ${token}`
         },

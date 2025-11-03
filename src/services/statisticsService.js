@@ -1,6 +1,6 @@
 import apiClient from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/api/statistics';
+const API_BASE_URL = 'http://localhost:8082/api/statistics';
 
 // Fetch book sales statistics (Admin)
 const getBookSalesStats = async (startDate, endDate) => {

@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8080/api/auth';
+const API_BASE_URL = 'http://localhost:8082/api/auth';
 
 const handleResponse = async (response) => {
   const text = await response.text(); // Get text first to avoid "already read" errors

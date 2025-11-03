@@ -184,7 +184,7 @@ const MainLayout = () => {
           {isAuthenticated && user ? (
             <Dropdown overlay={userMenuItems} trigger={['click']}>
               <Button type="text" style={{ display: 'flex', alignItems: 'center' }}>
-                <Avatar icon={<UserOutlined />} src={user.avatarUrl ? `http://localhost:8080${user.avatarUrl}` : undefined} size="small" style={{ marginRight: 8 }} />
+                <Avatar icon={<UserOutlined />} src={user.avatarUrl ? `http://localhost:8082${user.avatarUrl}` : undefined} size="small" style={{ marginRight: 8 }} />
                 {user.username}
               </Button>
             </Dropdown>

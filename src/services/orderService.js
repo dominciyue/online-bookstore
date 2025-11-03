@@ -1,6 +1,6 @@
 import apiClient from './apiClient'; // Import the new API client
 
-const API_BASE_URL = 'http://localhost:8080/api'; // Your Spring Boot backend address
+const API_BASE_URL = 'http://localhost:8082/api'; // Your Spring Boot backend address
 const ORDER_API_URL = `${API_BASE_URL}/orders`;
 const ADMIN_ORDER_API_URL = `${API_BASE_URL}/admin/orders`; // Admin endpoint
 
