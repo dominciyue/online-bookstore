@@ -91,6 +91,18 @@ src/**/@antv/**/src/
 !.gitkeep
 
 # =========================
+# Third-party tools (local development)
+# =========================
+# Redis
+Redis-x64-3.0.504/
+redis-*/
+*.rdb
+dump.rdb
+
+# Kafka
+kafka_*/
+kafka-logs/
+
+# =========================
 # End of file
 # =========================
-.Redis-x64-3.0.504
