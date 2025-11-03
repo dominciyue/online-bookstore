@@ -154,7 +154,7 @@ git commit -m "feat: Author微服务 - 根据书名查询作者
 - 端口: 8081"
 
 # 关联GitHub仓库（创建新仓库）
-git remote add origin https://github.com/your-username/author-service.git
+git remote add origin https://github.com/dominciyue/author-service.git
 
 # 推送
 git push -u origin main
@@ -227,10 +227,10 @@ cd E:\web
 git checkout feature/microservices
 
 # 添加其他项目作为子模块
-git submodule add https://github.com/your-username/author-service.git microservices/author-service
-git submodule add https://github.com/your-username/eureka-server.git microservices/eureka-server
-git submodule add https://github.com/your-username/gateway-service.git microservices/gateway-service
-git submodule add https://github.com/your-username/price-calculator-service.git microservices/price-calculator-service
+git submodule add https://github.com/dominciyue/author-service.git microservices/author-service
+git submodule add https://github.com/dominciyue/eureka-server.git microservices/eureka-server
+git submodule add https://github.com/dominciyue/gateway-service.git microservices/gateway-service
+git submodule add https://github.com/dominciyue/price-calculator-service.git microservices/price-calculator-service
 
 # 提交子模块配置
 git add .gitmodules microservices/
