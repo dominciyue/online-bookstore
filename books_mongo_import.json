@@ -1,0 +1,74 @@
+[
+	{
+	  "bookId": 2,
+	  "cover": "/images/csapp.jpg",
+	  "description": "计算机系统领域经典之作，来深入剖析计算机系统底层原理。",
+	  "reviews": [],
+	  "createdAt": {
+		"$date": "2025-10-04T16:23:29.271Z"
+	  },
+	  "updatedAt": {
+		"$date": "2025-10-04T16:23:29.271Z"
+	  }
+	},
+	{
+	  "bookId": 3,
+	  "cover": "/images/clrs.jpg",
+	  "description": "算法领域圣经，全面覆盖经典算法和数据结构。",
+	  "reviews": [],
+	  "createdAt": {
+		"$date": "2025-10-04T16:43:01.015Z"
+	  },
+	  "updatedAt": {
+		"$date": "2025-10-04T16:43:01.015Z"
+	  }
+	},
+	{
+	  "bookId": 4,
+	  "cover": "/images/js_ninja.jpg",
+	  "description": "前端开发必备红宝书，详细讲解JavaScript语言核心及高级特性。",
+	  "reviews": [],
+	  "createdAt": {
+		"$date": "2025-10-04T17:12:29.551Z"
+	  },
+	  "updatedAt": {
+		"$date": "2025-10-04T17:12:29.551Z"
+	  }
+	},
+	{
+	  "bookId": 5,
+	  "cover": "/images/python_crash.jpg",
+	  "description": "Python入门畅销书，通过项目实践引导读者快速掌握Python编程。",
+	  "reviews": [],
+	  "createdAt": {
+		"$date": "2025-10-17T08:34:58.546Z"
+	  },
+	  "updatedAt": {
+		"$date": "2025-10-17T08:34:58.546Z"
+	  }
+	},
+	{
+	  "bookId": 6,
+	  "cover": "/images/three.jpg",
+	  "description": "中国科幻里程碑之作，包含《三体》、《黑暗森林》、《死神永生》三部曲。",
+	  "reviews": [],
+	  "createdAt": {
+		"$date": "2025-10-04T17:12:29.557Z"
+	  },
+	  "updatedAt": {
+		"$date": "2025-10-04T17:12:29.557Z"
+	  }
+	},
+	{
+	  "bookId": 9,
+	  "cover": "https://ts1.tc.mm.bing.net/th/id/OIP-C.ESh64Wvw02olU2VJq4ypTwHaFA?w=276&h=211&c=8&rs=1&qlt=90&o=6&cb=iavawebpc1&dpr=1.3&pid=3.1&rm=2",
+	  "description": "11",
+	  "reviews": [],
+	  "createdAt": {
+		"$date": "2025-06-22T05:23:08.500Z"
+	  },
+	  "updatedAt": {
+		"$date": "2025-10-27T08:01:05.784Z"
+	  }
+	}
+  ]

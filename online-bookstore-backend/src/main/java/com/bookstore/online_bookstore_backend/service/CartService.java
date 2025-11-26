@@ -1,6 +1,6 @@
 package com.bookstore.online_bookstore_backend.service;
 
-import com.bookstore.online_bookstore_backend.dao.BookDao;
+import com.bookstore.online_bookstore_backend.dao.BookHybridDao;
 import com.bookstore.online_bookstore_backend.dao.CartItemDao;
 import com.bookstore.online_bookstore_backend.entity.Book;
 import com.bookstore.online_bookstore_backend.entity.CartItem;
@@ -16,12 +16,12 @@ import java.util.stream.Collectors;
 public class CartService {
 
     private final CartItemDao cartItemDao;
-    private final BookDao bookDao;
+    private final BookHybridDao bookHybridDao;
 
     @Autowired
-    public CartService(CartItemDao cartItemDao, BookDao bookDao) {
+    public CartService(CartItemDao cartItemDao, BookHybridDao bookHybridDao) {
         this.cartItemDao = cartItemDao;
-        this.bookDao = bookDao;
+        this.bookHybridDao = bookHybridDao;
     }
 
     @Transactional(readOnly = true)
@@ -29,9 +29,8 @@ public class CartService {
         List<CartItem> items = cartItemDao.findByUserId(userId);
         // 为每个购物车项目填充瞬时字段 (title, price, cover)
         return items.stream().map(item -> {
-            Optional<Book> bookOpt = bookDao.findById(item.getBookId());
-            if (bookOpt.isPresent()) {
-                Book book = bookOpt.get();
+            Book book = bookHybridDao.findByIdWithMongoData(item.getBookId());
+            if (book != null) {
                 item.setTitle(book.getTitle());
                 item.setPrice(book.getPrice());
                 item.setCover(book.getCover());
@@ -43,11 +42,13 @@ public class CartService {
     @Transactional
     public CartItem addBookToCart(Long userId, Long bookId, int quantity) {
         if (quantity <= 0) {
-            throw new IllegalArgumentException("数量必须为正数。");
+            throw new IllegalArgumentException("购买数量必须为正数。");
         }
 
-        Book book = bookDao.findById(bookId)
-                .orElseThrow(() -> new RuntimeException("未找到ID为: " + bookId + " 的书籍"));
+        Book book = bookHybridDao.findByIdWithMongoData(bookId);
+        if (book == null) {
+            throw new RuntimeException("未找到ID为: " + bookId + " 的书籍");
+        }
 
         if (book.getStock() < quantity) {
             throw new RuntimeException("书籍库存不足: " + book.getTitle());
@@ -59,7 +60,7 @@ public class CartService {
         if (existingItemOpt.isPresent()) {
             cartItem = existingItemOpt.get();
             int newQuantity = cartItem.getQuantity() + quantity;
-            if (book.getStock() < newQuantity) { // 再次检查累计数量的库存
+            if (book.getStock() < newQuantity) {
                  throw new RuntimeException("书籍库存不足: " + book.getTitle() + " (总计请求: " + newQuantity + ")");
             }
             cartItem.setQuantity(newQuantity);
@@ -77,16 +78,17 @@ public class CartService {
     @Transactional
     public CartItem updateCartItemQuantity(Long userId, Long bookId, int quantity) {
         if (quantity <= 0) {
-            // 如果数量小于等于0，则移除该商品项
             removeBookFromCart(userId, bookId);
-            return null; // 或者抛出异常，或返回特定状态
+            return null;
         }
 
         CartItem cartItem = cartItemDao.findByUserIdAndBookId(userId, bookId)
                 .orElseThrow(() -> new RuntimeException("未找到用户 " + userId + " 的书籍 " + bookId + " 的购物车项"));
 
-        Book book = bookDao.findById(bookId)
-                .orElseThrow(() -> new RuntimeException("未找到ID为: " + bookId + " 的书籍"));
+        Book book = bookHybridDao.findByIdWithMongoData(bookId);
+        if (book == null) {
+            throw new RuntimeException("未找到ID为: " + bookId + " 的书籍");
+        }
 
         if (book.getStock() < quantity) {
             throw new RuntimeException("书籍库存不足: " + book.getTitle());

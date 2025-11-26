@@ -1,6 +1,6 @@
 package com.bookstore.online_bookstore_backend.service;
 
-import com.bookstore.online_bookstore_backend.dao.BookDao;
+import com.bookstore.online_bookstore_backend.dao.BookHybridDao;
 import com.bookstore.online_bookstore_backend.dao.OrderDao;
 import com.bookstore.online_bookstore_backend.dao.OrderItemDao;
 import com.bookstore.online_bookstore_backend.entity.*;
@@ -25,15 +25,15 @@ public class OrderService {
     private final OrderDao orderDao;
     private final OrderItemDao orderItemDao;
     private final CartService cartService; // 用于获取购物车项和清空购物车
-    private final BookDao bookDao; // Use BookDao
+    private final BookHybridDao bookHybridDao; // 使用混合DAO
 
     @Autowired
     public OrderService(OrderDao orderDao, OrderItemDao orderItemDao, CartService cartService, 
-                        BookDao bookDao) { // Inject BookDao
+                        BookHybridDao bookHybridDao) {
         this.orderDao = orderDao;
         this.orderItemDao = orderItemDao;
         this.cartService = cartService;
-        this.bookDao = bookDao; // Use BookDao
+        this.bookHybridDao = bookHybridDao;
     }
 
     @Transactional
@@ -76,8 +76,10 @@ public class OrderService {
         BigDecimal totalPrice = BigDecimal.ZERO;
 
         for (CartItem cartItem : cartItems) {
-            Book book = bookDao.findById(cartItem.getBookId())
-                    .orElseThrow(() -> new RuntimeException("未找到书籍ID: " + cartItem.getBookId()));
+            Book book = bookHybridDao.findByIdWithMongoData(cartItem.getBookId());
+            if (book == null) {
+                throw new RuntimeException("未找到书籍ID: " + cartItem.getBookId());
+            }
 
             if (book.getStock() < cartItem.getQuantity()) {
                 throw new RuntimeException("书籍库存不足: " + book.getTitle() + " (需求: " + cartItem.getQuantity() + ", 库存: " + book.getStock() + ")");
@@ -87,9 +89,9 @@ public class OrderService {
             orderItems.add(orderItem);
             totalPrice = totalPrice.add(book.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
             
-            // 更新库存
+            // 更新库存（只更新MySQL中的stock字段）
             book.setStock(book.getStock() - cartItem.getQuantity());
-            bookDao.save(book);
+            bookHybridDao.save(book);
         }
 
         // 保存OrderItem记录
@@ -108,8 +110,10 @@ public class OrderService {
             throw new IllegalArgumentException("购买数量必须为正数。");
         }
 
-        Book book = bookDao.findById(bookId)
-                .orElseThrow(() -> new RuntimeException("未找到书籍ID: " + bookId + "，无法创建订单。"));
+        Book book = bookHybridDao.findByIdWithMongoData(bookId);
+        if (book == null) {
+            throw new RuntimeException("未找到书籍ID: " + bookId + "，无法创建订单。");
+        }
 
         if (book.getStock() < quantity) {
             throw new RuntimeException("书籍库存不足: " + book.getTitle() + " (需求: " + quantity + ", 库存: " + book.getStock() + ")");
@@ -137,8 +141,10 @@ public class OrderService {
             Long bookId = bookIds.get(i);
             Integer quantity = quantities.get(i);
 
-            Book book = bookDao.findById(bookId)
-                    .orElseThrow(() -> new RuntimeException("未找到书籍ID: " + bookId));
+            Book book = bookHybridDao.findByIdWithMongoData(bookId);
+            if (book == null) {
+                throw new RuntimeException("未找到书籍ID: " + bookId);
+            }
 
             if (book.getStock() < quantity) {
                 throw new RuntimeException("书籍库存不足: " + book.getTitle());
@@ -148,9 +154,9 @@ public class OrderService {
             orderItems.add(orderItem);
             totalPrice = totalPrice.add(book.getPrice().multiply(BigDecimal.valueOf(quantity)));
 
-            // 更新库存
+            // 更新库存（只更新MySQL中的stock字段）
             book.setStock(book.getStock() - quantity);
-            bookDao.save(book);
+            bookHybridDao.save(book);
         }
 
         // 保存OrderItem记录

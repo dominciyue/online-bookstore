@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -48,6 +47,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         if (startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("Start date cannot be after end date.");
         }
+        // cover已在MySQL查询中返回，无需从MongoDB加载
         return orderItemRepository.findBookSalesStatsBetweenDates(startDate, endDate);
     }
 
@@ -101,6 +101,8 @@ public class StatisticsServiceImpl implements StatisticsService {
                 logger.warn("SCRATCH_REWRITE_SERVICE_WARN: Database query returned null list for User ID: {}. Returning empty list.", userId);
                 return Collections.emptyList();
             }
+            
+            // cover已在MySQL查询中返回，无需从MongoDB加载
             
             if (!purchasedBookItems.isEmpty()) {
                 logger.debug("SCRATCH_REWRITE_SERVICE_DETAIL: First item for User ID {}: {}", userId, purchasedBookItems.get(0));

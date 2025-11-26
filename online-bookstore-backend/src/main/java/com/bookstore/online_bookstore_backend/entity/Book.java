@@ -5,12 +5,12 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
+import jakarta.persistence.Transient;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -46,12 +46,11 @@ public class Book {
     @Column(precision = 10, scale = 2) // 对于 BigDecimal, precision 和 scale 是合适的
     private BigDecimal price;
 
-    @Column(length = 1000) // 封面图片的URL通常不会太长，但可以适当放宽
+    @Column(length = 1000) // 封面图片URL保留在MySQL中，确保基本功能正常
     private String cover;
 
-    @Lob // 表示这是一个可能较大的文本字段
-    @Column(columnDefinition = "TEXT") // 对于较长的描述，使用TEXT类型
-    private String description;
+    @Transient // description存储在MongoDB中，标记为瞬时字段
+    private String description; // 从MongoDB加载的书籍描述
 
     @Column(length = 50)
     private String category; // 书籍分类 (可以考虑之后将其设计为单独的Category实体并建立关联)

@@ -15,23 +15,23 @@ import lombok.Setter;
 public class UserAuth {
 
     @Id
-    // This ID will be populated with the User's ID
-    private Long id;
+    @Column(name = "user_id")
+    private Long userId;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @MapsId // Indicates that the primary key of this entity is also a foreign key to User
-    @JoinColumn(name = "user_id") // Specifies the foreign key column in the user_auths table
+    @OneToOne
+    @MapsId
+    @JoinColumn(name = "user_id")
     private User user;
 
     @NotBlank
-    @Size(max = 120) // Consistent with previous password size in User entity
+    @Size(max = 120)
     @Column(nullable = false)
     private String password;
 
-    // Constructor, for example, to be used in service layer
+    // Constructor
     public UserAuth(User user, String password) {
         this.user = user;
-        this.id = user.getId(); // Set the ID from the associated User
+        this.userId = user.getId();
         this.password = password;
     }
 } 
