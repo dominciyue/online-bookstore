@@ -89,5 +89,13 @@ public interface BookHybridDao extends BookDao {
      * @param bookId 书籍ID
      */
     void deleteMongoDataByBookId(Long bookId);
+    
+    /**
+     * 为已有的Page<Book>填充MongoDB数据
+     * 用于标签搜索等直接从Repository获取数据的场景
+     * @param booksPage 从Repository获取的Book分页
+     * @return 填充MongoDB数据后的Book分页
+     */
+    Page<Book> fillMongoDataForPage(Page<Book> booksPage);
 }
 

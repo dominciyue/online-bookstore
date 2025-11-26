@@ -141,6 +141,12 @@ public class BookHybridDaoImpl extends BookDaoImpl implements BookHybridDao {
     public void deleteMongoDataByBookId(Long bookId) {
         bookMongoRepository.deleteByBookId(bookId);
     }
+    
+    @Override
+    public Page<Book> fillMongoDataForPage(Page<Book> booksPage) {
+        // 直接使用已有的私有方法
+        return enrichPageWithMongoData(booksPage);
+    }
 
     /**
      * 从MongoDB加载数据填充Book的瞬时字段

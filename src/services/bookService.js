@@ -113,6 +113,26 @@ const getDeletedBooks = async (params) => {
   return apiClient.get(`${BOOKS_API_URL}/admin/deleted${query}`);
 };
 
+/**
+ * 按标签搜索图书（核心功能）
+ * @param {Array<string>} tags - 用户选择的标签数组
+ * @param {Object} params - 分页参数 {page, size, sort}
+ * @returns {Promise} 返回符合条件的图书列表
+ */
+const searchBooksByTags = async (tags, params = {}) => {
+  const queryParams = new URLSearchParams();
+  
+  // 添加标签参数（多个标签）
+  tags.forEach(tag => queryParams.append('tags', tag));
+  
+  // 添加分页参数
+  if (params.page !== undefined) queryParams.append('page', params.page);
+  if (params.size !== undefined) queryParams.append('size', params.size);
+  if (params.sort) queryParams.append('sort', params.sort);
+  
+  return apiClient.get(`${BOOKS_API_URL}/search/by-tags?${queryParams.toString()}`);
+};
+
 const bookService = {
   getAllBooks,
   getBookById,
@@ -123,6 +143,7 @@ const bookService = {
   restoreBook,
   getAllBooksForAdmin,
   getDeletedBooks,
+  searchBooksByTags, // 新增
 };
 
 export default bookService;

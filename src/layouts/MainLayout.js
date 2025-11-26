@@ -13,7 +13,8 @@ import {
   BookOutlined, // Icon for Book Management
   SettingOutlined, // For general admin settings or management
   ShoppingOutlined, // For order management
-  AreaChartOutlined // For statistics
+  AreaChartOutlined, // For statistics
+  TagsOutlined // For tag search
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth
 
@@ -25,6 +26,7 @@ const getSelectedKeys = (pathname) => {
   if (pathname.startsWith('/cart')) return ['cart'];
   if (pathname.startsWith('/profile')) return ['profile'];
   if (pathname.startsWith('/orders')) return ['orders'];
+  if (pathname.startsWith('/tag-search')) return ['tag-search'];
   if (pathname.startsWith('/admin/users')) return ['admin-users']; // Key for admin users page
   if (pathname.startsWith('/admin/books')) return ['admin-books']; // Key for admin books page
   if (pathname.startsWith('/category')) return ['categories']; // Example for a category menu item
@@ -126,6 +128,11 @@ const MainLayout = () => {
       key: 'home',
       icon: <HomeOutlined />,
       label: <Link to="/">主页</Link>,
+    },
+    {
+      key: 'tag-search',
+      icon: <TagsOutlined />,
+      label: <Link to="/tag-search">标签搜索</Link>,
     },
     {
       key: 'cart',

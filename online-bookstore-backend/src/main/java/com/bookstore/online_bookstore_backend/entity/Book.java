@@ -13,11 +13,14 @@ import jakarta.persistence.TemporalType;
 import jakarta.persistence.Transient;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 // 如果您在 pom.xml 中添加了 Lombok 依赖
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "books") // 指定数据库中的表名为 "books"
@@ -56,6 +59,11 @@ public class Book {
     private String category; // 书籍分类 (可以考虑之后将其设计为单独的Category实体并建立关联)
 
     private Integer stock; // 库存数量
+
+    // 标签列表（存储为JSON数组）
+    @Column(columnDefinition = "JSON")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<String> tags;
 
     // 软删除标记字段
     @Column(nullable = false)

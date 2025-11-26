@@ -180,4 +180,27 @@ public class BookController {
         Page<Book> deletedBooksPage = bookService.getDeletedBooks(pageable);
         return ResponseEntity.ok(deletedBooksPage);
     }
+
+    /**
+     * 按标签搜索图书（核心功能接口）
+     * GET /api/books/search/by-tags?tags=技术类&tags=编程语言
+     * 
+     * 该接口会：
+     * 1. 从Neo4j中查找与用户选择标签通过2次边连接相关的所有标签
+     * 2. 在MySQL中搜索包含这些标签的图书
+     */
+    @GetMapping("/search/by-tags")
+    public ResponseEntity<Page<Book>> searchBooksByTags(
+            @RequestParam List<String> tags,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id,asc") String[] sort) {
+        
+        Sort.Direction direction = sort[1].equalsIgnoreCase("desc") ? 
+                Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sort[0]));
+        
+        Page<Book> booksPage = bookService.searchBooksByTags(tags, pageable);
+        return ResponseEntity.ok(booksPage);
+    }
 }

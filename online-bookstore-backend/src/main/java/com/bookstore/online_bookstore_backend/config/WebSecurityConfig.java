@@ -66,6 +66,7 @@ public class WebSecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll() // Allow access to auth endpoints
                 .requestMatchers("/api/books/**").permitAll() // Allow public access to view books (adjust as needed)
+                .requestMatchers("/api/tags/**").permitAll() // Allow public access to tags
                 .requestMatchers("/uploads/avatars/**").permitAll() // Allow public access to uploaded avatars
                 .requestMatchers("/ws/**").permitAll() // Allow WebSocket connections (authentication handled by WebSocketAuthInterceptor)
                 .requestMatchers("/api/users/me").authenticated() // Allow authenticated users to get their details

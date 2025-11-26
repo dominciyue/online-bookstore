@@ -62,4 +62,16 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     @Query("SELECT b FROM Book b WHERE b.id = :id")
     Optional<Book> findByIdIgnoreDeleted(@Param("id") Long id);
 
+    // 按标签搜索图书（使用原生SQL查询JSON字段）
+    // 查找tags字段包含指定标签列表中任意一个标签的图书
+    // 使用JSON_OVERLAPS函数（MySQL 8.0.17+）- 更简洁高效
+    @Query(value = "SELECT b.* FROM books b WHERE b.deleted = false " +
+                   "AND b.tags IS NOT NULL " +
+                   "AND JSON_OVERLAPS(b.tags, CAST(:tagNamesJson AS JSON))",
+           countQuery = "SELECT COUNT(*) FROM books b WHERE b.deleted = false " +
+                        "AND b.tags IS NOT NULL " +
+                        "AND JSON_OVERLAPS(b.tags, CAST(:tagNamesJson AS JSON))",
+           nativeQuery = true)
+    Page<Book> findByTagsIn(@Param("tagNamesJson") String tagNamesJson, Pageable pageable);
+
 }

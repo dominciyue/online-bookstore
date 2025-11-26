@@ -2,22 +2,35 @@ package com.bookstore.online_bookstore_backend.service; // 确保是正确的包
 
 import com.bookstore.online_bookstore_backend.dao.BookHybridDao; // 使用混合DAO
 import com.bookstore.online_bookstore_backend.entity.Book;
+import com.bookstore.online_bookstore_backend.repository.BookRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // 用于事务管理
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service // 标记这是一个 Spring Service Bean
 public class BookService {
 
     private final BookHybridDao bookHybridDao; // 使用混合DAO
+    private final BookRepository bookRepository; // 用于标签搜索
+    private final ObjectMapper objectMapper; // JSON序列化工具
+    
+    @Autowired
+    private TagService tagService; // 用于查询Neo4j标签关系
 
-    @Autowired // Spring 自动注入 BookHybridDao 的实例
-    public BookService(BookHybridDao bookHybridDao) {
+    @Autowired // Spring 自动注入依赖
+    public BookService(BookHybridDao bookHybridDao, BookRepository bookRepository, ObjectMapper objectMapper) {
         this.bookHybridDao = bookHybridDao;
+        this.bookRepository = bookRepository;
+        this.objectMapper = objectMapper;
     }
 
     // 获取所有书籍 (支持分页) - 自动填充MongoDB数据
@@ -118,5 +131,44 @@ public class BookService {
     @Transactional(readOnly = true)
     public Page<Book> getDeletedBooks(Pageable pageable) {
         return bookHybridDao.findDeletedBooksWithMongoData(pageable);
+    }
+
+    /**
+     * 按标签搜索图书（核心功能）
+     * 1. 从Neo4j中查找与指定标签通过2次边连接相关的所有标签
+     * 2. 在MySQL中搜索包含这些标签的图书
+     * 
+     * @param tagNames 用户选择的标签列表
+     * @param pageable 分页参数
+     * @return 符合条件的图书分页结果
+     */
+    @Transactional(readOnly = true)
+    public Page<Book> searchBooksByTags(List<String> tagNames, Pageable pageable) {
+        if (tagNames == null || tagNames.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        // 步骤1：从Neo4j获取相关标签（包括2次边连接内的所有标签）
+        Set<String> relatedTags = tagService.findRelatedTagNames(tagNames);
+        
+        // 如果没有找到相关标签，返回空结果
+        if (relatedTags.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        // 步骤2：在MySQL中搜索包含这些标签的图书
+        // 将Set转换为List再转换为JSON字符串（用于JSON_OVERLAPS函数）
+        List<String> tagList = new ArrayList<>(relatedTags);
+        try {
+            String tagNamesJson = objectMapper.writeValueAsString(tagList);
+            Page<Book> booksPage = bookRepository.findByTagsIn(tagNamesJson, pageable);
+            
+            // ⚠️ 重要：填充MongoDB数据（description字段）
+            return bookHybridDao.fillMongoDataForPage(booksPage);
+        } catch (JsonProcessingException e) {
+            // JSON序列化失败，记录错误并返回空结果
+            System.err.println("标签JSON序列化失败: " + e.getMessage());
+            return Page.empty(pageable);
+        }
     }
 }

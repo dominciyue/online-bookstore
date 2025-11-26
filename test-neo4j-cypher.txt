@@ -1,0 +1,60 @@
+// ============================================
+// Neo4j标签图 - Cypher查询测试脚本
+// 在Neo4j Browser中依次执行以下查询
+// ============================================
+
+// 1. 查看所有标签节点
+MATCH (n:Tag) 
+RETURN n 
+ORDER BY n.level, n.name;
+
+// 2. 查看标签关系（树形结构）
+MATCH (parent:Tag)-[r:HAS_SUBCATEGORY]->(child:Tag)
+RETURN parent.name AS 父分类, 
+       child.name AS 子分类, 
+       parent.level AS 父层级, 
+       child.level AS 子层级
+ORDER BY parent.level, child.level;
+
+// 3. 可视化标签图
+MATCH (n:Tag)-[r]->(m:Tag)
+RETURN n, r, m;
+
+// 4. 测试核心功能：查找"技术类"的2层关系内的所有标签
+MATCH (start:Tag {name: '技术类'})-[:HAS_SUBCATEGORY|RELATED_TO*0..2]-(related:Tag)
+RETURN DISTINCT related.name AS 相关标签, related.level AS 层级
+ORDER BY related.level, related.name;
+
+// 5. 测试查找"编程语言"的相关标签
+MATCH (start:Tag {name: '编程语言'})-[:HAS_SUBCATEGORY|RELATED_TO*0..2]-(related:Tag)
+RETURN DISTINCT related.name AS 相关标签, related.level AS 层级
+ORDER BY related.level, related.name;
+
+// 6. 测试查找"Python"的相关标签
+MATCH (start:Tag {name: 'Python'})-[:HAS_SUBCATEGORY|RELATED_TO*0..2]-(related:Tag)
+RETURN DISTINCT related.name AS 相关标签, related.level AS 层级
+ORDER BY related.level, related.name;
+
+// 7. 测试查找"科幻小说"的相关标签
+MATCH (start:Tag {name: '科幻小说'})-[:HAS_SUBCATEGORY|RELATED_TO*0..2]-(related:Tag)
+RETURN DISTINCT related.name AS 相关标签, related.level AS 层级
+ORDER BY related.level, related.name;
+
+// 8. 查看每个标签的子标签数量
+MATCH (parent:Tag)
+OPTIONAL MATCH (parent)-[:HAS_SUBCATEGORY]->(child:Tag)
+RETURN parent.name AS 标签名称, 
+       parent.level AS 层级, 
+       count(child) AS 子标签数量
+ORDER BY parent.level, parent.name;
+
+// 9. 查看完整的标签树路径
+MATCH path = (root:Tag {level: 0})-[:HAS_SUBCATEGORY*]->(leaf:Tag)
+WHERE NOT EXISTS((leaf)-[:HAS_SUBCATEGORY]->())
+RETURN [node in nodes(path) | node.name] AS 标签路径
+ORDER BY 标签路径;
+
+// 10. 创建索引以提高查询性能（可选）
+CREATE INDEX tag_name_index IF NOT EXISTS FOR (t:Tag) ON (t.name);
+CREATE INDEX tag_level_index IF NOT EXISTS FOR (t:Tag) ON (t.level);
+

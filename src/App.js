@@ -8,6 +8,7 @@ import Profile from './pages/Profile';
 import CategoryPage from './pages/Category';
 import OrderList from './pages/OrderList';
 import SearchResultsPage from './pages/SearchResultsPage';
+import TagSearchPage from './pages/TagSearchPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -34,6 +35,7 @@ const App = () => {
               <Route path="book/:id" element={<BookDetail />} />
               <Route path="category/:categoryKey" element={<CategoryPage />} />
               <Route path="search" element={<SearchResultsPage />} />
+              <Route path="tag-search" element={<TagSearchPage />} />
               <Route path="cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
               <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="orders" element={<ProtectedRoute><OrderList /></ProtectedRoute>} />
