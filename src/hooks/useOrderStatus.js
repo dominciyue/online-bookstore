@@ -12,127 +12,104 @@ export const useOrderStatus = () => {
   const [isConnected, setIsConnected] = useState(false);
   const { user } = useAuth();
 
-  // 处理订单状态更新
   const handleOrderStatusUpdate = useCallback((orderStatus) => {
-    console.log('处理订单状态更新:', orderStatus);
-    
+    console.log('[useOrderStatus] 收到订单状态:', orderStatus);
     setOrderUpdates(prev => {
-      // 更新或添加订单状态
-      const existingIndex = prev.findIndex(update => 
-        update.orderId === orderStatus.orderId || 
-        update.requestId === orderStatus.requestId
+      const idx = prev.findIndex(u =>
+        u.orderId === orderStatus.orderId ||
+        (orderStatus.requestId && u.requestId === orderStatus.requestId)
       );
-      
-      if (existingIndex >= 0) {
-        // 更新现有订单状态
-        const updated = [...prev];
-        updated[existingIndex] = { ...updated[existingIndex], ...orderStatus };
-        return updated;
-      } else {
-        // 添加新订单状态
-        return [...prev, orderStatus];
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], ...orderStatus };
+        return copy;
       }
+      return [...prev, orderStatus];
     });
-
-    // 显示通知消息
     if (orderStatus.message) {
-      const messageType = orderStatus.status === 'FAILED' ? 'error' : 'success';
-      message[messageType]({
+      message[orderStatus.status === 'FAILED' ? 'error' : 'success']({
         content: orderStatus.message,
-        duration: 4,
+        duration: 4
       });
     }
   }, []);
 
-  // 处理公共订单更新
-  const handlePublicOrderUpdate = useCallback((orderStatus) => {
-    console.log('处理公共订单更新:', orderStatus);
-    // 可以在这里处理管理员监控等逻辑
-  }, []);
-
-  // 连接WebSocket
   const connectWebSocket = useCallback(() => {
-    if (!user || !user.id) {
-      console.warn('用户未登录，无法连接WebSocket', { user });
+    const uid = (user?.id || user?.userId);
+    if (!uid) {
+      console.warn('[useOrderStatus] 无有效用户ID，跳过连接');
       return;
     }
-
-    console.log('准备连接WebSocket，用户信息:', user);
-    console.log('用户ID:', user.id, '类型:', typeof user.id);
-
     websocketService.connect(
-      user.id.toString(),
-      (frame) => {
-        console.log('WebSocket连接成功');
-        setIsConnected(true);
-      },
-      (error) => {
-        console.error('WebSocket连接失败:', error);
-        setIsConnected(false);
-        message.error('实时通知连接失败，请刷新页面重试');
+      uid.toString(),
+      {
+        onConnect: () => {
+          console.log('[useOrderStatus] onConnect 回调触发');
+          setIsConnected(true);
+        },
+        onError: () => {
+          console.log('[useOrderStatus] onError 回调触发');
+          setIsConnected(false);
+        },
+        onClose: () => {
+          console.log('[useOrderStatus] onClose 回调触发');
+          setIsConnected(false);
+        }
       }
     );
+    // 即时兜底
+    setIsConnected(websocketService.isConnected());
   }, [user]);
 
-  // 断开WebSocket连接
-  const disconnectWebSocket = useCallback(() => {
-    websocketService.disconnect();
-    setIsConnected(false);
-  }, []);
+  useEffect(() => {
+    if (user && (user.id || user.userId)) {
+      // 订阅连接状态
+      const unsubConn = websocketService.subscribe('CONNECTION_STATUS', (st) => {
+        console.log('[useOrderStatus] CONNECTION_STATUS 事件:', st);
+        setIsConnected(!!st.connected);
+      });
+      // 订阅订单状态
+      const unsubOrder = websocketService.subscribe('ORDER_STATUS_UPDATE', handleOrderStatusUpdate);
 
-  // 获取特定订单的状态
-  const getOrderStatus = useCallback((orderId) => {
-    return orderUpdates.find(update => update.orderId === orderId);
-  }, [orderUpdates]);
+      connectWebSocket();
 
-  // 获取特定请求的状态
-  const getRequestStatus = useCallback((requestId) => {
-    return orderUpdates.find(update => update.requestId === requestId);
-  }, [orderUpdates]);
+      const interval = setInterval(() => {
+        const real = websocketService.isConnected();
+        setIsConnected(prev => (prev === real ? prev : real));
+      }, 7000);
 
-  // 清除过期的订单状态（可选）
+      return () => {
+        unsubConn();
+        unsubOrder();
+        clearInterval(interval);
+      };
+    }
+  }, [user, connectWebSocket, handleOrderStatusUpdate]);
+
+  const getOrderStatus = useCallback(orderId =>
+    orderUpdates.find(u => u.orderId === orderId),
+    [orderUpdates]
+  );
+
+  const getRequestStatus = useCallback(requestId =>
+    orderUpdates.find(u => u.requestId === requestId),
+    [orderUpdates]
+  );
+
   const clearExpiredUpdates = useCallback(() => {
-    const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    
-    setOrderUpdates(prev => 
-      prev.filter(update => {
-        if (!update.updateTime) return true;
-        const updateTime = new Date(update.updateTime);
-        return updateTime > oneHourAgo;
+    const cutoff = Date.now() - 60 * 60 * 1000;
+    setOrderUpdates(prev =>
+      prev.filter(u => {
+        if (!u.updateTime) return true;
+        return new Date(u.updateTime).getTime() > cutoff;
       })
     );
   }, []);
 
-  // WebSocket连接和事件监听
   useEffect(() => {
-    // 启用WebSocket连接
-    if (user && user.id) {
-      connectWebSocket();
-    }
-
-    // 监听订单状态更新事件
-    const handleOrderUpdate = (event) => {
-      handleOrderStatusUpdate(event.detail);
-    };
-
-    const handlePublicUpdate = (event) => {
-      handlePublicOrderUpdate(event.detail);
-    };
-
-    window.addEventListener('orderStatusUpdate', handleOrderUpdate);
-    window.addEventListener('publicOrderUpdate', handlePublicUpdate);
-
-    // 定期清理过期更新
-    const cleanupInterval = setInterval(clearExpiredUpdates, 5 * 60 * 1000); // 每5分钟清理一次
-
-    return () => {
-      window.removeEventListener('orderStatusUpdate', handleOrderUpdate);
-      window.removeEventListener('publicOrderUpdate', handlePublicUpdate);
-      clearInterval(cleanupInterval);
-      // 组件卸载时不断开WebSocket，保持全局连接
-    };
-  }, [user, handleOrderStatusUpdate, handlePublicOrderUpdate, clearExpiredUpdates, connectWebSocket]);
+    const cleanupInterval = setInterval(clearExpiredUpdates, 5 * 60 * 1000);
+    return () => clearInterval(cleanupInterval);
+  }, [clearExpiredUpdates]);
 
   return {
     orderUpdates,
@@ -141,6 +118,6 @@ export const useOrderStatus = () => {
     getRequestStatus,
     clearExpiredUpdates,
     connectWebSocket,
-    disconnectWebSocket
+    disconnectWebSocket: () => websocketService.disconnect()
   };
 };

@@ -1,21 +1,28 @@
 package com.bookstore.online_bookstore_backend.service; // 确保是正确的包名
 
 import com.bookstore.online_bookstore_backend.dao.BookDao; // Import BookDao
+import com.bookstore.online_bookstore_backend.dto.BookWithInventoryDTO;
 import com.bookstore.online_bookstore_backend.entity.Book;
 // import com.bookstore.online_bookstore_backend.repository.BookRepository; // No longer directly used
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // 用于事务管理
 
-import java.util.List;
 import java.util.Optional;
 
 @Service // 标记这是一个 Spring Service Bean
 public class BookService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(BookService.class);
 
     private final BookDao bookDao; // Use BookDao
+    
+    @Autowired
+    private BookInventoryService inventoryService;
 
     @Autowired // Spring 自动注入 BookDao 的实例
     public BookService(BookDao bookDao) { // Inject BookDao
@@ -42,6 +49,18 @@ public class BookService {
     public Optional<Book> getBookById(Long id) {
         // findById 返回一个 Optional<Book>，表示可能找到也可能找不到
         return bookDao.findById(id); // Use bookDao
+    }
+    
+    // 根据ID获取书籍详情（包含库存信息）
+    @Transactional(readOnly = true)
+    public Optional<BookWithInventoryDTO> getBookWithInventoryById(Long id) {
+        Optional<Book> bookOpt = bookDao.findById(id);
+        if (bookOpt.isPresent()) {
+            Book book = bookOpt.get();
+            Integer stock = inventoryService.getStock(id);
+            return Optional.of(BookWithInventoryDTO.fromBookAndStock(book, stock));
+        }
+        return Optional.empty();
     }
 
     // 添加新书 (或更新已有书籍，如果ID存在)

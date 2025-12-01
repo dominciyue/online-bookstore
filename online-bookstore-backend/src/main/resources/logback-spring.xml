@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 控制台输出 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Redis 缓存相关日志 -->
+    <appender name="REDIS_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/redis.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/redis.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <!-- 数据库操作日志 -->
+    <appender name="DB_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/database.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/database.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <!-- 业务操作日志 -->
+    <appender name="BUSINESS_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/business.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/business.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Redis 缓存服务的日志 -->
+    <logger name="com.bookstore.online_bookstore_backend.service.RedisCacheService" level="DEBUG" additivity="false">
+        <appender-ref ref="REDIS_LOG"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- BookInventoryDaoImpl 的日志 -->
+    <logger name="com.bookstore.online_bookstore_backend.dao.impl.BookInventoryDaoImpl" level="INFO" additivity="false">
+        <appender-ref ref="DB_LOG"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- BookDaoImpl 的日志 -->
+    <logger name="com.bookstore.online_bookstore_backend.dao.impl.BookDaoImpl" level="INFO" additivity="false">
+        <appender-ref ref="DB_LOG"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Controller 层的日志 -->
+    <logger name="com.bookstore.online_bookstore_backend.controller" level="INFO" additivity="false">
+        <appender-ref ref="BUSINESS_LOG"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Service 层的日志 -->
+    <logger name="com.bookstore.online_bookstore_backend.service" level="INFO" additivity="false">
+        <appender-ref ref="BUSINESS_LOG"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Hibernate SQL 日志 -->
+    <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+        <appender-ref ref="DB_LOG"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Hibernate 参数绑定日志 -->
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
+        <appender-ref ref="DB_LOG"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Spring Data Redis 日志 -->
+    <logger name="org.springframework.data.redis" level="DEBUG" additivity="false">
+        <appender-ref ref="REDIS_LOG"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- 根日志级别 -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
+

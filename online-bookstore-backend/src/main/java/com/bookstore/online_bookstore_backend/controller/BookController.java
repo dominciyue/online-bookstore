@@ -1,7 +1,11 @@
 package com.bookstore.online_bookstore_backend.controller; // 确保是正确的包名
 
+import com.bookstore.online_bookstore_backend.dto.BookWithInventoryDTO;
 import com.bookstore.online_bookstore_backend.entity.Book;
+import com.bookstore.online_bookstore_backend.service.BookInventoryService;
 import com.bookstore.online_bookstore_backend.service.BookService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -12,15 +16,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*; // 导入所有 Web 注解
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @RestController // 组合了 @Controller 和 @ResponseBody，表示所有方法返回的数据直接写入HTTP响应体
 @RequestMapping("/api/books") // 此 Controller 处理的所有请求都以 /api/books 为前缀
 public class BookController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(BookController.class);
 
     private final BookService bookService;
+    
+    @Autowired
+    private BookInventoryService inventoryService;
 
     @Autowired
     public BookController(BookService bookService) {
@@ -50,37 +58,64 @@ public class BookController {
         return ResponseEntity.ok(booksPage); // 返回 200 OK 和书籍列表
     }
 
-    // GET /api/books/{id} - 根据ID获取书籍详情
+    // GET /api/books/{id} - 根据ID获取书籍详情（包含库存）
     @GetMapping("/{id}")
-    public ResponseEntity<Book> getBookById(@PathVariable Long id) {
-        Optional<Book> bookOptional = bookService.getBookById(id);
+    public ResponseEntity<BookWithInventoryDTO> getBookById(@PathVariable Long id) {
+        logger.info("Get book details: ID={}", id);
+        Optional<BookWithInventoryDTO> bookOptional = bookService.getBookWithInventoryById(id);
         // 如果找到了书，返回 200 OK 和书对象；否则返回 404 Not Found
         return bookOptional.map(ResponseEntity::ok)
                            .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // POST /api/books - 添加一本新书
+    // POST /api/books - 添加一本新书（包含库存信息）
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> addBook(@RequestBody Book book) {
+    public ResponseEntity<?> addBook(@RequestBody BookWithInventoryDTO bookDTO) {
         try {
-            // @RequestBody 将HTTP请求体中的JSON数据绑定到Book对象
+            logger.info("Add new book: Title={}, Stock={}", bookDTO.getTitle(), bookDTO.getStock());
+            
+            // 1. 保存图书基础信息
+            Book book = new Book();
+            book.setTitle(bookDTO.getTitle());
+            book.setAuthor(bookDTO.getAuthor());
+            book.setIsbn(bookDTO.getIsbn());
+            book.setPublisher(bookDTO.getPublisher());
+            book.setPrice(bookDTO.getPrice());
+            book.setCover(bookDTO.getCover());
+            book.setDescription(bookDTO.getDescription());
+            book.setCategory(bookDTO.getCategory());
+            
             Book savedBook = bookService.saveBook(book);
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedBook); // 返回 201 Created 和保存后的书对象
+            
+            // 2. 保存库存信息
+            if (bookDTO.getStock() != null && bookDTO.getStock() > 0) {
+                inventoryService.updateInventory(savedBook.getId(), bookDTO.getStock());
+            }
+            
+            // 3. 返回完整的DTO
+            BookWithInventoryDTO resultDTO = BookWithInventoryDTO.fromBookAndStock(savedBook, bookDTO.getStock());
+            logger.info("✅ New book added successfully: ID={}, Title={}", savedBook.getId(), savedBook.getTitle());
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(resultDTO);
         } catch (RuntimeException e) {
+            logger.error("❌ Failed to add new book: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         }
     }
 
-    // PUT /api/books/{id} - 更新已有书籍信息
+    // PUT /api/books/{id} - 更新已有书籍信息（包含库存）
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> updateBook(@PathVariable Long id, @RequestBody Book bookDetails) {
+    public ResponseEntity<?> updateBook(@PathVariable Long id, @RequestBody BookWithInventoryDTO bookDetails) {
         try {
+            logger.info("Update book: ID={}, Title={}, Stock={}", id, bookDetails.getTitle(), bookDetails.getStock());
+            
             Optional<Book> existingBookOptional = bookService.getBookById(id);
             if (existingBookOptional.isPresent()) {
                 Book existingBook = existingBookOptional.get();
-                // 更新字段 (这里简单地用传入对象的字段覆盖，实际应用中可能需要更复杂的合并逻辑)
+                
+                // 1. 更新图书基础信息
                 existingBook.setTitle(bookDetails.getTitle());
                 existingBook.setAuthor(bookDetails.getAuthor());
                 existingBook.setIsbn(bookDetails.getIsbn());
@@ -89,14 +124,25 @@ public class BookController {
                 existingBook.setCover(bookDetails.getCover());
                 existingBook.setDescription(bookDetails.getDescription());
                 existingBook.setCategory(bookDetails.getCategory());
-                existingBook.setStock(bookDetails.getStock());
-                // 注意：bookDetails传过来的id可能会被忽略，因为我们用的是existingBook的id
-                Book updatedBook = bookService.saveBook(existingBook); // save 方法也可以用于更新
-                return ResponseEntity.ok(updatedBook);
+                
+                Book updatedBook = bookService.saveBook(existingBook);
+                
+                // 2. 更新库存信息
+                if (bookDetails.getStock() != null) {
+                    inventoryService.updateInventory(id, bookDetails.getStock());
+                }
+                
+                // 3. 返回完整的DTO
+                BookWithInventoryDTO resultDTO = BookWithInventoryDTO.fromBookAndStock(updatedBook, bookDetails.getStock());
+                logger.info("✅ Book updated successfully: ID={}, Title={}", id, updatedBook.getTitle());
+                
+                return ResponseEntity.ok(resultDTO);
             } else {
-                return ResponseEntity.notFound().build(); // 如果找不到要更新的书，返回404
+                logger.warn("⚠️ Book not found: ID={}", id);
+                return ResponseEntity.notFound().build();
             }
         } catch (RuntimeException e) {
+            logger.error("❌ Failed to update book: ID={}, Error={}", id, e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         }
     }
@@ -106,8 +152,8 @@ public class BookController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteBook(@PathVariable Long id) {
         try {
-            bookService.deleteBookById(id); // 使用软删除
-            return ResponseEntity.ok(Map.of("message", "书籍已成功删除（软删除）"));
+            bookService.deleteBookById(id);
+            return ResponseEntity.ok(Map.of("message", "Book soft-deleted successfully"));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
         }
@@ -119,26 +165,70 @@ public class BookController {
     public ResponseEntity<?> restoreBook(@PathVariable Long id) {
         try {
             bookService.restoreBookById(id);
-            return ResponseEntity.ok(Map.of("message", "书籍已成功恢复"));
+            return ResponseEntity.ok(Map.of("message", "Book restored successfully"));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
         }
     }
 
-    // DELETE /api/books/{id}/hard - 物理删除书籍（管理员专用）
+    // DELETE /api/books/{id}/hard - 物理删除书籍（管理员专用，同时删除库存）
     @DeleteMapping("/{id}/hard")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> hardDeleteBook(@PathVariable Long id) {
         try {
+            logger.info("Hard delete book: ID={}", id);
+            
             Optional<Book> bookOptional = bookService.getBookById(id);
             if (bookOptional.isPresent()) {
+                // 1. 删除库存信息
+                inventoryService.deleteInventory(id);
+                
+                // 2. 删除图书信息
                 bookService.hardDeleteBookById(id);
-                return ResponseEntity.ok(Map.of("message", "书籍已永久删除"));
+                
+                logger.info("✅ Book permanently deleted: ID={}", id);
+                return ResponseEntity.ok(Map.of("message", "Book permanently deleted"));
             } else {
+                logger.warn("⚠️ Book not found: ID={}", id);
                 return ResponseEntity.notFound().build();
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "删除失败: " + e.getMessage()));
+            logger.error("❌ Failed to delete book: ID={}, Error={}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Failed to delete: " + e.getMessage()));
+        }
+    }
+    
+    // PUT /api/books/{id}/inventory - 更新图书库存
+    @PutMapping("/{id}/inventory")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> updateInventory(@PathVariable Long id, @RequestBody Map<String, Integer> request) {
+        try {
+            Integer stock = request.get("stock");
+            if (stock == null || stock < 0) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Invalid stock quantity"));
+            }
+            
+            logger.info("Update inventory: BookID={}, NewStock={}", id, stock);
+            inventoryService.updateInventory(id, stock);
+            logger.info("✅ Inventory updated successfully: BookID={}, Stock={}", id, stock);
+            
+            return ResponseEntity.ok(Map.of("message", "Inventory updated successfully", "stock", stock));
+        } catch (Exception e) {
+            logger.error("❌ Failed to update inventory: BookID={}, Error={}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Failed to update inventory: " + e.getMessage()));
+        }
+    }
+    
+    // GET /api/books/{id}/inventory - 获取图书库存
+    @GetMapping("/{id}/inventory")
+    public ResponseEntity<?> getInventory(@PathVariable Long id) {
+        try {
+            Integer stock = inventoryService.getStock(id);
+            return ResponseEntity.ok(Map.of("bookId", id, "stock", stock));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Failed to get inventory: " + e.getMessage()));
         }
     }
 

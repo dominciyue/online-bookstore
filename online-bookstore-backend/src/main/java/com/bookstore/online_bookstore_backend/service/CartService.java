@@ -17,6 +17,9 @@ public class CartService {
 
     private final CartItemDao cartItemDao;
     private final BookDao bookDao;
+    
+    @Autowired
+    private BookInventoryService inventoryService; // 库存服务
 
     @Autowired
     public CartService(CartItemDao cartItemDao, BookDao bookDao) {
@@ -49,7 +52,9 @@ public class CartService {
         Book book = bookDao.findById(bookId)
                 .orElseThrow(() -> new RuntimeException("未找到ID为: " + bookId + " 的书籍"));
 
-        if (book.getStock() < quantity) {
+        // 检查库存
+        Integer currentStock = inventoryService.getStock(bookId);
+        if (currentStock < quantity) {
             throw new RuntimeException("书籍库存不足: " + book.getTitle());
         }
 
@@ -59,7 +64,7 @@ public class CartService {
         if (existingItemOpt.isPresent()) {
             cartItem = existingItemOpt.get();
             int newQuantity = cartItem.getQuantity() + quantity;
-            if (book.getStock() < newQuantity) { // 再次检查累计数量的库存
+            if (currentStock < newQuantity) { // 再次检查累计数量的库存
                  throw new RuntimeException("书籍库存不足: " + book.getTitle() + " (总计请求: " + newQuantity + ")");
             }
             cartItem.setQuantity(newQuantity);
@@ -88,7 +93,9 @@ public class CartService {
         Book book = bookDao.findById(bookId)
                 .orElseThrow(() -> new RuntimeException("未找到ID为: " + bookId + " 的书籍"));
 
-        if (book.getStock() < quantity) {
+        // 检查库存
+        Integer currentStock = inventoryService.getStock(bookId);
+        if (currentStock < quantity) {
             throw new RuntimeException("书籍库存不足: " + book.getTitle());
         }
 

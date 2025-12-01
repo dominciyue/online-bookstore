@@ -25,6 +25,9 @@ public class TransactionTestService {
     private final OrderDao orderDao;
     private final OrderItemDao orderItemDao;
     private final BookDao bookDao;
+    
+    @Autowired
+    private BookInventoryService inventoryService;
 
     @Autowired
     public TransactionTestService(OrderDao orderDao, OrderItemDao orderItemDao, BookDao bookDao) {
@@ -171,7 +174,9 @@ public class TransactionTestService {
             Book book = bookDao.findById(bookId)
                     .orElseThrow(() -> new RuntimeException("未找到书籍ID: " + bookId));
 
-            if (book.getStock() < quantity) {
+            // Check stock using inventory service
+            Integer currentStock = inventoryService.getStock(bookId);
+            if (currentStock < quantity) {
                 throw new RuntimeException("书籍库存不足: " + book.getTitle());
             }
 
@@ -179,9 +184,11 @@ public class TransactionTestService {
             orderItems.add(orderItem);
             totalPrice = totalPrice.add(book.getPrice().multiply(BigDecimal.valueOf(quantity)));
 
-            // 更新库存
-            book.setStock(book.getStock() - quantity);
-            bookDao.save(book);
+            // Reduce stock using inventory service
+            boolean stockReduced = inventoryService.reduceStock(bookId, quantity);
+            if (!stockReduced) {
+                throw new RuntimeException("减少库存失败: " + book.getTitle());
+            }
         }
 
         // 保存OrderItem记录

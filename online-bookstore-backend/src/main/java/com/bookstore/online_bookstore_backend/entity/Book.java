@@ -56,7 +56,8 @@ public class Book {
     @Column(length = 50)
     private String category; // 书籍分类 (可以考虑之后将其设计为单独的Category实体并建立关联)
 
-    private Integer stock; // 库存数量
+    // 注意：库存信息已迁移到 BookInventory 表，用于更好的缓存管理和并发控制
+    // private Integer stock; // 库存数量 - 已废弃，请使用 BookInventory
 
     // 软删除标记字段
     @Column(nullable = false)
