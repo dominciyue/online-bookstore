@@ -37,8 +37,7 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         
-        // 配置 Jackson2JsonRedisSerializer
-        Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(Object.class);
+        // 配置 ObjectMapper
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
         objectMapper.activateDefaultTyping(
@@ -50,7 +49,9 @@ public class RedisConfig {
         objectMapper.registerModule(new JavaTimeModule());
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         
-        jackson2JsonRedisSerializer.setObjectMapper(objectMapper);
+        // Spring Data Redis 3.x 的新构造方式：直接传入 ObjectMapper
+        Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer = 
+            new Jackson2JsonRedisSerializer<>(objectMapper, Object.class);
         
         // 使用 StringRedisSerializer 序列化 key
         StringRedisSerializer stringRedisSerializer = new StringRedisSerializer();
