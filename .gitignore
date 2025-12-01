@@ -94,8 +94,6 @@ src/**/@antv/**/src/
 # Third-party tools (local development)
 # =========================
 # Redis
-Redis-x64-3.0.504/
-redis-*/
 *.rdb
 dump.rdb
 
