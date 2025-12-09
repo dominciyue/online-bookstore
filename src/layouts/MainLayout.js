@@ -16,6 +16,7 @@ import {
   AreaChartOutlined // For statistics
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth
+import ChatBot from '../components/ChatBot'; // 聊天机器人组件
 
 const { Header, Content, Sider } = Layout;
 const { Search } = Input;
@@ -218,6 +219,8 @@ const MainLayout = () => {
           </Content>
         </Layout>
       </Layout>
+      {/* 聊天机器人悬浮组件 */}
+      <ChatBot />
     </Layout>
   );
 };
