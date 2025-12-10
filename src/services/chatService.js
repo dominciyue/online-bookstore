@@ -3,8 +3,8 @@
  * 与n8n工作流通信
  */
 
-// n8n webhook URL
-const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/chat';
+// 聊天代理服务 URL（解决 CORS 问题）
+const N8N_WEBHOOK_URL = 'http://localhost:3002/chat';
 
 // 备用：直接调用MCP HTTP服务
 const MCP_HTTP_URL = 'http://localhost:3001';
@@ -146,27 +146,26 @@ export const checkServiceHealth = async () => {
         });
         const mcpOk = mcpResponse.ok;
 
-        // 简单检查n8n是否响应（可能需要认证）
-        let n8nOk = false;
+        // 检查聊天代理服务
+        let proxyOk = false;
         try {
-            const n8nResponse = await fetch('http://localhost:5678/healthz', {
+            const proxyResponse = await fetch('http://localhost:3002/health', {
                 method: 'GET',
             });
-            n8nOk = n8nResponse.ok;
+            proxyOk = proxyResponse.ok;
         } catch {
-            // n8n可能没有healthz端点
-            n8nOk = false;
+            proxyOk = false;
         }
 
         return {
             mcp: mcpOk,
-            n8n: n8nOk,
-            overall: mcpOk, // 只要MCP可用，备用方案就可以工作
+            proxy: proxyOk,
+            overall: mcpOk && proxyOk,
         };
     } catch (error) {
         return {
             mcp: false,
-            n8n: false,
+            proxy: false,
             overall: false,
         };
     }

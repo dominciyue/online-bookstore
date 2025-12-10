@@ -8,11 +8,14 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook-trigger",
+      "id": "0ae27fd9-a9ba-4690-bc2e-c8098d4d2a77",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [100, 300],
+      "position": [
+        -880,
+        112
+      ],
       "webhookId": "bookstore-chat"
     },
     {
@@ -26,14 +29,17 @@
         "jsonBody": "={\n  \"model\": \"deepseek-chat\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"你是在线书店E-BookStore的智能助手。你可以帮助用户搜索书籍、查询书籍信息、按分类浏览、按价格筛选书籍。当用户询问关于书籍的问题时，分析用户意图并返回JSON格式的工具调用指令。可用工具：\\n1. search_books: 搜索书籍，参数: query(关键词), searchType(all/title/author/isbn/category), limit(数量)\\n2. get_book_by_id: 根据ID获取书籍，参数: bookId\\n3. get_books_by_category: 按分类获取，参数: category, limit\\n4. get_all_categories: 获取所有分类，无参数\\n5. get_books_by_price_range: 按价格筛选，参数: minPrice, maxPrice, limit\\n\\n如果需要调用工具，返回格式: {\\\"action\\\": \\\"call_tool\\\", \\\"tool\\\": \\\"工具名\\\", \\\"params\\\": {参数}}\\n如果是普通对话，直接回复文字即可。\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{{ $json.body.message }}\"\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 1000\n}",
         "options": {}
       },
-      "id": "deepseek-ai",
+      "id": "af457688-21dc-49d1-a8e4-c7005915abe1",
       "name": "DeepSeek AI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [320, 300],
+      "position": [
+        -656,
+        112
+      ],
       "credentials": {
         "openAiApi": {
-          "id": "your-openai-credential-id",
+          "id": "QqnAMs9g6voJBqQ5",
           "name": "OpenAi account"
         }
       }
@@ -42,11 +48,14 @@
       "parameters": {
         "jsCode": "// 解析DeepSeek的响应\nconst response = $input.first().json;\nlet aiResponse = '';\nlet needToolCall = false;\nlet toolInfo = null;\n\ntry {\n  if (response.choices && response.choices[0] && response.choices[0].message) {\n    aiResponse = response.choices[0].message.content;\n    \n    // 尝试解析是否有工具调用\n    try {\n      // 查找JSON格式的工具调用\n      const jsonMatch = aiResponse.match(/\\{[\\s\\S]*\"action\"[\\s\\S]*\"call_tool\"[\\s\\S]*\\}/);\n      if (jsonMatch) {\n        const toolCall = JSON.parse(jsonMatch[0]);\n        if (toolCall.action === 'call_tool') {\n          needToolCall = true;\n          toolInfo = {\n            tool_name: toolCall.tool,\n            parameters: toolCall.params || {}\n          };\n        }\n      }\n    } catch (e) {\n      // 不是工具调用，继续处理为普通响应\n    }\n  }\n} catch (e) {\n  aiResponse = '抱歉，处理您的请求时出现了问题。';\n}\n\nreturn {\n  json: {\n    needToolCall,\n    toolInfo,\n    aiResponse,\n    originalMessage: $('Webhook').first().json.body.message\n  }\n};"
       },
-      "id": "parse-response",
+      "id": "051b9849-c13e-4d06-8612-a0756fcd1c70",
       "name": "Parse Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [540, 300]
+      "position": [
+        -448,
+        112
+      ]
     },
     {
       "parameters": {
@@ -71,11 +80,14 @@
         },
         "options": {}
       },
-      "id": "if-tool-call",
+      "id": "cd1eaa1e-764a-41e9-9b00-f9f3ad0a4d64",
       "name": "Need Tool Call?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [760, 300]
+      "position": [
+        -224,
+        112
+      ]
     },
     {
       "parameters": {
@@ -86,54 +98,40 @@
         "jsonBody": "={{ JSON.stringify($json.toolInfo) }}",
         "options": {}
       },
-      "id": "call-mcp-tool",
+      "id": "61c2f34e-2b2e-47d8-ab34-7f950a7052b3",
       "name": "Call MCP Tool",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [980, 200]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.deepseek.com/v1/chat/completions",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"deepseek-chat\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"你是在线书店的智能助手。根据查询结果，用友好的中文回复用户。如果是书籍列表，简洁地列出书名、作者和价格。如果没有找到结果，友好地告知用户。\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"用户问题：\" + $('Parse Response').first().json.originalMessage + \"\\n\\n查询结果：\" + JSON.stringify($json)\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 1000\n}",
-        "options": {}
+        "jsCode": "const mcpResult = $input.first().json;\nlet reply = '';\n\ntry {\n    console.log('MCP Result:', JSON.stringify(mcpResult));\n    \n    if (mcpResult && mcpResult.success) {\n        const data = mcpResult.data;\n        const toolName = mcpResult.tool;\n        \n        // 根据不同工具处理不同数据\n        if (toolName === 'get_all_categories') {\n            // 分类列表是字符串数组\n            if (Array.isArray(data) && data.length > 0) {\n                reply = '📂 书店目前有以下分类：\\n' + data.map(cat => `• ${cat}`).join('\\n');\n            } else {\n                reply = '暂无分类信息。';\n            }\n        } \n        else if (Array.isArray(data)) {\n            // 书籍列表\n            if (data.length > 0) {\n                // 检查是否是书籍对象\n                if (data[0].title) {\n                    reply = '为您找到以下书籍：\\n' + data.map(book => \n                        `📚 《${book.title}》- ${book.author} - ¥${book.price}`\n                    ).join('\\n');\n                } else {\n                    // 可能是其他类型的数组\n                    reply = data.join('\\n');\n                }\n            } else {\n                reply = '抱歉，没有找到相关内容。';\n            }\n        } \n        else if (data && data.title) {\n            // 单本书详情\n            reply = `📖 《${data.title}》\\n作者：${data.author}\\n价格：¥${data.price}\\n分类：${data.category || '未分类'}\\n简介：${data.description || '暂无简介'}`;\n        }\n        else if (data === null) {\n            reply = '没有找到相关信息。';\n        }\n        else {\n            // 其他情况，直接显示\n            reply = typeof data === 'string' ? data : JSON.stringify(data, null, 2);\n        }\n    } else {\n        reply = '查询时出现问题：' + (mcpResult?.error || '未知错误');\n    }\n} catch (e) {\n    reply = '处理结果时出错：' + e.message;\n}\n\nreturn {\n    json: {\n        reply,\n        success: true\n    }\n};"
       },
-      "id": "format-tool-result",
-      "name": "Format Result",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1200, 200],
-      "credentials": {
-        "openAiApi": {
-          "id": "your-openai-credential-id",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const response = $input.first().json;\nlet reply = '';\n\ntry {\n  if (response.choices && response.choices[0] && response.choices[0].message) {\n    reply = response.choices[0].message.content;\n  } else {\n    reply = '抱歉，处理结果时出现了问题。';\n  }\n} catch (e) {\n  reply = '抱歉，生成回复时出现了问题。';\n}\n\nreturn {\n  json: {\n    reply,\n    success: true\n  }\n};"
-      },
-      "id": "prepare-tool-response",
+      "id": "99d5fe0a-7b9d-473a-a2e9-7784604ea73d",
       "name": "Prepare Tool Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1420, 200]
+      "position": [
+        448,
+        0
+      ]
     },
     {
       "parameters": {
         "jsCode": "return {\n  json: {\n    reply: $('Parse Response').first().json.aiResponse,\n    success: true\n  }\n};"
       },
-      "id": "prepare-direct-response",
+      "id": "40129682-e8e0-4698-95e1-00edc2eb7462",
       "name": "Prepare Direct Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [980, 400]
+      "position": [
+        0,
+        208
+      ]
     },
     {
       "parameters": {
@@ -158,13 +156,45 @@
           }
         }
       },
-      "id": "respond-webhook",
+      "id": "4ae7ff94-6e39-4bc5-ae27-3fedae456075",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1640, 300]
+      "position": [
+        672,
+        112
+      ]
     }
   ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "localhost:5678",
+            "connection": "keep-alive",
+            "content-type": "application/json",
+            "accept": "*/*",
+            "accept-language": "*",
+            "sec-fetch-mode": "cors",
+            "user-agent": "node",
+            "accept-encoding": "gzip, deflate",
+            "content-length": "32"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "message": "你可以联网吗"
+          },
+          "webhookUrl": "http://localhost:5678/webhook/chat",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
   "connections": {
     "Webhook": {
       "main": [
@@ -221,17 +251,6 @@
       "main": [
         [
           {
-            "node": "Format Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Result": {
-      "main": [
-        [
-          {
             "node": "Prepare Tool Response",
             "type": "main",
             "index": 0
@@ -262,9 +281,14 @@
       ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "versionId": "6172c8ee-6f90-4dfb-be29-dd9c44fbbc22",
+  "meta": {
+    "instanceId": "5eefdf64311991381bbc95fec0f1a977456d4d7a3f896b571e8c261d7566cc28"
+  },
+  "id": "43O1lVPyB4KL9f2k",
+  "tags": []
 }
-
-
