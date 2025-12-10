@@ -1,0 +1,3 @@
+[submodule "bookstore_mcp_server"]
+	path = bookstore_mcp_server
+	url = git@github.com:dominciyue/bookstore_mcp_server.git
