@@ -1,0 +1,50 @@
+# GraphQL Schema for Online Bookstore
+
+# 查询类型
+type Query {
+    # 按书名搜索书籍
+    searchBooksByTitle(title: String!, page: Int = 0, size: Int = 10): BookPage!
+    
+    # 根据ID获取书籍详情
+    getBookById(id: ID!): Book
+}
+
+# 书籍类型
+type Book {
+    id: ID!
+    title: String!
+    author: String
+    isbn: String
+    publisher: String
+    price: Float
+    cover: String
+    description: String
+    category: String
+    deleted: Boolean!
+    createdAt: String
+    updatedAt: String
+    deletedAt: String
+}
+
+# 分页结果类型
+type BookPage {
+    # 当前页的书籍列表
+    content: [Book!]!
+    # 总记录数
+    totalElements: Int!
+    # 总页数
+    totalPages: Int!
+    # 当前页码（从0开始）
+    number: Int!
+    # 每页大小
+    size: Int!
+    # 当前页实际记录数
+    numberOfElements: Int!
+    # 是否是第一页
+    first: Boolean!
+    # 是否是最后一页
+    last: Boolean!
+    # 是否为空页
+    empty: Boolean!
+}
+

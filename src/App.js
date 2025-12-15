@@ -18,6 +18,7 @@ import AdminOrderManagement from './pages/AdminOrderManagement';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './data/cartContext';
 import AdminStatisticsPage from './pages/AdminStatisticsPage';
+import GraphQLSearchPage from './pages/GraphQLSearchPage';
 
 // 不再使用 antd/dist/reset.css，新版本有不同的导入方式
 
@@ -34,6 +35,7 @@ const App = () => {
               <Route path="book/:id" element={<BookDetail />} />
               <Route path="category/:categoryKey" element={<CategoryPage />} />
               <Route path="search" element={<SearchResultsPage />} />
+              <Route path="graphql-search" element={<GraphQLSearchPage />} />
               <Route path="cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
               <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="orders" element={<ProtectedRoute><OrderList /></ProtectedRoute>} />

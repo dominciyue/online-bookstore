@@ -68,6 +68,10 @@ public class WebSecurityConfig {
                 .requestMatchers("/api/books/**").permitAll() // Allow public access to view books (adjust as needed)
                 .requestMatchers("/uploads/avatars/**").permitAll() // Allow public access to uploaded avatars
                 .requestMatchers("/ws/**").permitAll() // Allow WebSocket connections (authentication handled by WebSocketAuthInterceptor)
+                .requestMatchers("/graphql", "/graphql/**").permitAll() // Allow public access to GraphQL endpoint
+                .requestMatchers("/graphiql", "/graphiql/**").permitAll() // Allow public access to GraphiQL UI
+                .requestMatchers("/error").permitAll() // Allow access to error page
+                .requestMatchers("/favicon.ico").permitAll() // Allow access to favicon
                 .requestMatchers("/api/users/me").authenticated() // Allow authenticated users to get their details
                 .requestMatchers("/api/users/profile").authenticated() // Allow authenticated users to update their profile
                 .requestMatchers("/api/users/avatar").authenticated() // Avatar upload endpoint itself needs auth
@@ -99,6 +103,8 @@ public class WebSecurityConfig {
         source.registerCorsConfiguration("/api/**", configuration); // Apply to /api path
         source.registerCorsConfiguration("/uploads/avatars/**", configuration); // Also apply CORS to avatar paths if needed, though GET usually is fine
         source.registerCorsConfiguration("/ws/**", configuration); // Apply CORS to WebSocket endpoint
+        source.registerCorsConfiguration("/graphql", configuration); // Apply CORS to GraphQL endpoint
+        source.registerCorsConfiguration("/graphiql", configuration); // Apply CORS to GraphiQL UI
         
         return source;
     }
