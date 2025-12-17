@@ -221,3 +221,4 @@ GraphiQL 提供了更好的错误信息和自动补全功能。
 
 修改 `WebSecurityConfig.java` 后，必须重新编译并重启后端服务才能使配置生效。确保 `/graphql`、`/graphiql`、`/error` 和 `/favicon.ico` 都配置为公开访问。
 
+
