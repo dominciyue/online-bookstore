@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -14,8 +15,10 @@ import java.util.concurrent.TimeUnit;
  * Redis 缓存服务
  * 提供图书信息和库存的缓存操作
  * 实现缓存降级机制，当 Redis 不可用时自动降级
+ * 当 bookstore.cache.enabled=false 时不会加载此服务
  */
 @Service
+@ConditionalOnProperty(name = "bookstore.cache.enabled", havingValue = "true", matchIfMissing = true)
 public class RedisCacheService {
     
     private static final Logger logger = LoggerFactory.getLogger(RedisCacheService.class);

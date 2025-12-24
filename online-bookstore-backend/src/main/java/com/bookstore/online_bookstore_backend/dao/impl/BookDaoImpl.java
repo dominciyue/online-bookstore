@@ -21,12 +21,18 @@ public class BookDaoImpl implements BookDao {
 
     private final BookRepository bookRepository;
     
-    @Autowired
+    // Redis缓存服务为可选依赖，当Redis未启用时为null
+    @Autowired(required = false)
     private RedisCacheService redisCacheService;
 
     @Autowired
     public BookDaoImpl(BookRepository bookRepository) {
         this.bookRepository = bookRepository;
+    }
+    
+    // 辅助方法：检查缓存服务是否可用
+    private boolean isCacheAvailable() {
+        return redisCacheService != null;
     }
 
     @Override
@@ -41,22 +47,26 @@ public class BookDaoImpl implements BookDao {
 
     @Override
     public Optional<Book> findById(Long id) {
-        // 1. Try Redis cache first
-        Book cachedBook = redisCacheService.getCachedBook(id);
-        if (cachedBook != null) {
-            logger.info("✅ Book from Redis: ID={}, Title={}", id, cachedBook.getTitle());
-            return Optional.of(cachedBook);
+        // 1. Try Redis cache first (if available)
+        if (isCacheAvailable()) {
+            Book cachedBook = redisCacheService.getCachedBook(id);
+            if (cachedBook != null) {
+                logger.info("✅ Book from Redis: ID={}, Title={}", id, cachedBook.getTitle());
+                return Optional.of(cachedBook);
+            }
+            logger.info("⚠️ Redis miss, query DB: ID={}", id);
         }
         
-        // 2. Cache miss, query database
-        logger.info("⚠️ Redis miss, query DB: ID={}", id);
+        // 2. Query database
         Optional<Book> bookOpt = bookRepository.findById(id);
         
-        // 3. Cache to Redis if found
-        bookOpt.ifPresent(book -> {
-            redisCacheService.cacheBook(book);
-            logger.info("📦 Cached to Redis: ID={}, Title={}", book.getId(), book.getTitle());
-        });
+        // 3. Cache to Redis if found and cache available
+        if (isCacheAvailable()) {
+            bookOpt.ifPresent(book -> {
+                redisCacheService.cacheBook(book);
+                logger.info("📦 Cached to Redis: ID={}, Title={}", book.getId(), book.getTitle());
+            });
+        }
         
         return bookOpt;
     }
@@ -66,9 +76,13 @@ public class BookDaoImpl implements BookDao {
         // 1. Save to database
         Book savedBook = bookRepository.save(book);
         
-        // 2. Update Redis cache (Write-Through)
-        redisCacheService.cacheBook(savedBook);
-        logger.info("✅ Book saved and cached: ID={}, Title={}", savedBook.getId(), savedBook.getTitle());
+        // 2. Update Redis cache (Write-Through) if available
+        if (isCacheAvailable()) {
+            redisCacheService.cacheBook(savedBook);
+            logger.info("✅ Book saved and cached: ID={}, Title={}", savedBook.getId(), savedBook.getTitle());
+        } else {
+            logger.info("✅ Book saved: ID={}, Title={}", savedBook.getId(), savedBook.getTitle());
+        }
         
         return savedBook;
     }
@@ -77,7 +91,9 @@ public class BookDaoImpl implements BookDao {
     public void deleteById(Long id) {
         // Delete from database and evict cache
         bookRepository.deleteById(id);
-        redisCacheService.evictBook(id);
+        if (isCacheAvailable()) {
+            redisCacheService.evictBook(id);
+        }
         logger.info("✅ Book deleted: ID={}", id);
     }
 
@@ -94,7 +110,9 @@ public class BookDaoImpl implements BookDao {
             Book book = bookOpt.get();
             book.markAsDeleted();
             bookRepository.save(book);
-            redisCacheService.evictBook(id);
+            if (isCacheAvailable()) {
+                redisCacheService.evictBook(id);
+            }
             logger.info("✅ Book soft-deleted: ID={}", id);
         } else {
             throw new RuntimeException("Book not found, ID: " + id);
@@ -108,7 +126,9 @@ public class BookDaoImpl implements BookDao {
             Book book = bookOpt.get();
             book.markAsActive();
             bookRepository.save(book);
-            redisCacheService.cacheBook(book);
+            if (isCacheAvailable()) {
+                redisCacheService.cacheBook(book);
+            }
             logger.info("✅ Book restored: ID={}", id);
         } else {
             throw new RuntimeException("Book not found, ID: " + id);

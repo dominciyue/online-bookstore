@@ -1,0 +1,87 @@
+# ========================================
+# Docker Compose 配置文件
+# 在线书店后端 + MySQL 数据库
+# ========================================
+
+services:
+  # ========================================
+  # MySQL 数据库服务
+  # ========================================
+  mysql:
+    image: mysql:8.0
+    container_name: bookstore-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: bookstore123
+      MYSQL_DATABASE: bookstore_db
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"  # 映射到主机3307端口，避免与本地MySQL冲突
+    volumes:
+      # 使用 Bind Mount 绑定数据目录，确保数据持久化
+      - ./docker-data/mysql:/var/lib/mysql
+      # 初始化脚本目录
+      - ./docker-init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pbookstore123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+
+  # ========================================
+  # Spring Boot 后端应用服务
+  # ========================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bookstore-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # 激活 docker profile
+      SPRING_PROFILES_ACTIVE: docker
+      # JVM 参数
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    volumes:
+      # 上传文件持久化
+      - ./docker-data/uploads:/app/uploads
+    networks:
+      - bookstore-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/books"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+# ========================================
+# 网络配置
+# ========================================
+networks:
+  bookstore-network:
+    driver: bridge
+    name: bookstore-network
+
+# ========================================
+# 说明：
+# 1. MySQL 数据通过 Bind Mount 存储在 ./docker-data/mysql 目录
+#    即使容器重启或删除，数据也不会丢失
+# 2. 后端应用依赖 MySQL 服务健康检查通过后才启动
+# 3. 端口映射：
+#    - MySQL: 主机3307 -> 容器3306
+#    - Backend: 主机8080 -> 容器8080
+# ========================================
+

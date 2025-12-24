@@ -20,31 +20,41 @@ public class BookInventoryDaoImpl implements BookInventoryDao {
     @Autowired
     private BookInventoryRepository inventoryRepository;
     
-    @Autowired
+    // Redis缓存服务为可选依赖
+    @Autowired(required = false)
     private RedisCacheService redisCacheService;
+    
+    // 辅助方法：检查缓存服务是否可用
+    private boolean isCacheAvailable() {
+        return redisCacheService != null;
+    }
     
     @Override
     @Transactional(readOnly = true)
     public Optional<BookInventory> findByBookId(Long bookId) {
-        // 1. Try Redis cache first
-        Integer cachedStock = redisCacheService.getCachedInventory(bookId);
-        if (cachedStock != null) {
-            logger.info("✅ Inventory from Redis: BookID={}, Stock={}", bookId, cachedStock);
-            BookInventory inventory = new BookInventory();
-            inventory.setBookId(bookId);
-            inventory.setStock(cachedStock);
-            return Optional.of(inventory);
+        // 1. Try Redis cache first (if available)
+        if (isCacheAvailable()) {
+            Integer cachedStock = redisCacheService.getCachedInventory(bookId);
+            if (cachedStock != null) {
+                logger.info("✅ Inventory from Redis: BookID={}, Stock={}", bookId, cachedStock);
+                BookInventory inventory = new BookInventory();
+                inventory.setBookId(bookId);
+                inventory.setStock(cachedStock);
+                return Optional.of(inventory);
+            }
+            logger.info("⚠️ Redis miss, query DB: BookID={}", bookId);
         }
         
-        // 2. Cache miss, query database
-        logger.info("⚠️ Redis miss, query DB: BookID={}", bookId);
+        // 2. Query database
         Optional<BookInventory> inventoryOpt = inventoryRepository.findById(bookId);
         
-        // 3. Cache to Redis if found
-        inventoryOpt.ifPresent(inv -> {
-            redisCacheService.cacheInventory(bookId, inv.getStock());
-            logger.info("📦 Cached to Redis: BookID={}, Stock={}", bookId, inv.getStock());
-        });
+        // 3. Cache to Redis if found and cache available
+        if (isCacheAvailable()) {
+            inventoryOpt.ifPresent(inv -> {
+                redisCacheService.cacheInventory(bookId, inv.getStock());
+                logger.info("📦 Cached to Redis: BookID={}, Stock={}", bookId, inv.getStock());
+            });
+        }
         
         return inventoryOpt;
     }
@@ -61,9 +71,13 @@ public class BookInventoryDaoImpl implements BookInventoryDao {
         // 1. 保存到数据库
         BookInventory saved = inventoryRepository.save(inventory);
         
-        // 2. 更新 Redis 缓存
-        redisCacheService.cacheInventory(saved.getBookId(), saved.getStock());
-        logger.info("✅ Inventory saved and cached: BookID={}, Stock={}", saved.getBookId(), saved.getStock());
+        // 2. 更新 Redis 缓存 (if available)
+        if (isCacheAvailable()) {
+            redisCacheService.cacheInventory(saved.getBookId(), saved.getStock());
+            logger.info("✅ Inventory saved and cached: BookID={}, Stock={}", saved.getBookId(), saved.getStock());
+        } else {
+            logger.info("✅ Inventory saved: BookID={}, Stock={}", saved.getBookId(), saved.getStock());
+        }
         
         return saved;
     }
@@ -74,8 +88,10 @@ public class BookInventoryDaoImpl implements BookInventoryDao {
         // 1. Delete from database
         inventoryRepository.deleteById(bookId);
         
-        // 2. Evict from Redis
-        redisCacheService.evictInventory(bookId);
+        // 2. Evict from Redis (if available)
+        if (isCacheAvailable()) {
+            redisCacheService.evictInventory(bookId);
+        }
         logger.info("✅ Inventory deleted: BookID={}", bookId);
     }
     
@@ -85,11 +101,11 @@ public class BookInventoryDaoImpl implements BookInventoryDao {
         logger.info("Attempt to reduce stock: BookID={}, Quantity={}", bookId, quantity);
         
         try {
-            // 1. 先尝试从 Redis 减库存（原子操作）
-            if (redisCacheService.isRedisAvailable()) {
+            // 1. 先尝试从 Redis 减库存（原子操作）- 如果Redis可用
+            if (isCacheAvailable() && redisCacheService.isRedisAvailable()) {
                 boolean success = redisCacheService.updateInventoryCache(bookId, -quantity);
                 if (success) {
-                    // Redis 操作成功，异步更新数据库
+                    // Redis 操作成功，同步更新数据库
                     Optional<BookInventory> inventoryOpt = inventoryRepository.findByIdWithLock(bookId);
                     if (inventoryOpt.isPresent()) {
                         BookInventory inventory = inventoryOpt.get();
@@ -107,8 +123,10 @@ public class BookInventoryDaoImpl implements BookInventoryDao {
                 }
             }
             
-            // 2. Redis 不可用，直接操作数据库
-            logger.warn("⚠️ Redis unavailable, operate DB directly");
+            // 2. Redis 不可用或未启用，直接操作数据库
+            if (!isCacheAvailable()) {
+                logger.info("Redis not available, operate DB directly");
+            }
             Optional<BookInventory> inventoryOpt = inventoryRepository.findByIdWithLock(bookId);
             if (inventoryOpt.isPresent()) {
                 BookInventory inventory = inventoryOpt.get();
@@ -143,8 +161,10 @@ public class BookInventoryDaoImpl implements BookInventoryDao {
             inventory.addStock(quantity);
             inventoryRepository.save(inventory);
             
-            // 2. 更新 Redis 缓存
-            redisCacheService.updateInventoryCache(bookId, quantity);
+            // 2. 更新 Redis 缓存 (if available)
+            if (isCacheAvailable()) {
+                redisCacheService.updateInventoryCache(bookId, quantity);
+            }
             logger.info("✅ Stock added successfully: BookID={}, NewStock={}", bookId, inventory.getStock());
         } else {
             // 如果不存在，创建新记录
@@ -152,9 +172,10 @@ public class BookInventoryDaoImpl implements BookInventoryDao {
             newInventory.setBookId(bookId);
             newInventory.setStock(quantity);
             inventoryRepository.save(newInventory);
-            redisCacheService.cacheInventory(bookId, quantity);
+            if (isCacheAvailable()) {
+                redisCacheService.cacheInventory(bookId, quantity);
+            }
             logger.info("✅ Inventory record created: BookID={}, Stock={}", bookId, quantity);
         }
     }
 }
-

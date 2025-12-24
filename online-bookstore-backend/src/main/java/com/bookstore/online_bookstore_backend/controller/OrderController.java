@@ -36,38 +36,42 @@ public class OrderController {
     private final OrderService orderService;
     private final CartService cartService;
     private final BookDao bookDao;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final KafkaTemplate<String, OrderRequestMessage> orderRequestKafkaTemplate;
-    private final WebSocketNotificationService webSocketNotificationService;
+    
+    // Kafka依赖设为可选
+    @Autowired(required = false)
+    private KafkaTemplate<String, String> kafkaTemplate;
+    
+    @Autowired(required = false)
+    private KafkaTemplate<String, OrderRequestMessage> orderRequestKafkaTemplate;
+    
+    @Autowired(required = false)
+    private WebSocketNotificationService webSocketNotificationService;
 
     @Autowired
-    public OrderController(OrderService orderService, CartService cartService,
-                          BookDao bookDao, KafkaTemplate<String, String> kafkaTemplate,
-                          KafkaTemplate<String, OrderRequestMessage> orderRequestKafkaTemplate,
-                          WebSocketNotificationService webSocketNotificationService) {
+    public OrderController(OrderService orderService, CartService cartService, BookDao bookDao) {
         this.orderService = orderService;
         this.cartService = cartService;
         this.bookDao = bookDao;
-        this.kafkaTemplate = kafkaTemplate;
-        this.orderRequestKafkaTemplate = orderRequestKafkaTemplate;
-        this.webSocketNotificationService = webSocketNotificationService;
+    }
+    
+    // 检查Kafka是否可用
+    private boolean isKafkaAvailable() {
+        return kafkaTemplate != null && orderRequestKafkaTemplate != null;
     }
 
     // 创建新订单 (从购物车)
-    // 请求体可以包含例如: { "shippingAddress": "Some Address" }
     @PostMapping("/create")
     public ResponseEntity<?> createOrderFromCart(@AuthenticationPrincipal User currentUser, @RequestBody(required = false) Map<String, String> payload) {
         if (currentUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "用户未登录"));
         }
         try {
-            // 如果不希望有地址环节，可以移除 payload 和 shippingAddress
-            String shippingAddress = (payload != null && payload.containsKey("shippingAddress")) ? payload.get("shippingAddress") : "用户未提供地址"; // 修改默认地址
+            String shippingAddress = (payload != null && payload.containsKey("shippingAddress")) ? payload.get("shippingAddress") : "用户未提供地址";
             Order createdOrder = orderService.createOrderFromCart(currentUser.getId(), shippingAddress);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdOrder);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
-        } catch (RuntimeException e) { // Covers cart empty, stock issues etc.
+        } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "创建订单时发生未知错误: " + e.getMessage()));
@@ -76,24 +80,22 @@ public class OrderController {
 
     // 创建新订单 (单本书)
     @PostMapping("/create-single")
-    public ResponseEntity<?> createOrderForSingleBook(@AuthenticationPrincipal User currentUser, @RequestBody Map<String, Object> payload) { // Changed to Map<String, Object> for diverse types
+    public ResponseEntity<?> createOrderForSingleBook(@AuthenticationPrincipal User currentUser, @RequestBody Map<String, Object> payload) {
         if (currentUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "用户未登录"));
         }
         try {
             Long bookId = Long.parseLong(payload.get("bookId").toString());
-            // Quantity can be an integer, default to 1 if not provided or invalid
             int quantity = 1;
             if (payload.containsKey("quantity")) {
                 try {
                     quantity = Integer.parseInt(payload.get("quantity").toString());
                 } catch (NumberFormatException e) {
-                    // Keep quantity as 1 if parsing fails, or return bad request
-                    // For now, let's be lenient and default to 1
+                    // Keep quantity as 1
                 }
             }
             if (quantity <= 0) {
-                quantity = 1; // Ensure quantity is positive, or throw error
+                quantity = 1;
             }
 
             String shippingAddress = payload.getOrDefault("shippingAddress", "用户未提供地址").toString();
@@ -101,10 +103,10 @@ public class OrderController {
             Order createdOrder = orderService.createOrderForSingleBook(currentUser.getId(), bookId, quantity, shippingAddress);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdOrder);
         } catch (NullPointerException | NumberFormatException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "无效的书籍ID或数量格式。 bookId是必需的。"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "无效的书籍ID或数量格式。bookId是必需的。"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
-        } catch (RuntimeException e) { // Catches stock issues etc.
+        } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "创建单品订单时发生未知错误: " + e.getMessage()));
@@ -117,18 +119,16 @@ public class OrderController {
             @AuthenticationPrincipal User currentUser,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "orderDate,desc") String[] sort, // Default sort by orderDate descending
+            @RequestParam(defaultValue = "orderDate,desc") String[] sort,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
-            @RequestParam(required = false) String bookName
-            // bookName filter will be added later
-            ) {
+            @RequestParam(required = false) String bookName) {
         if (currentUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "用户未登录"));
         }
         try {
             Sort.Direction direction = sort.length > 1 && sort[1].equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
-            String sortField = sort.length > 0 ? sort[0] : "orderDate"; // Ensure a default sort field
+            String sortField = sort.length > 0 ? sort[0] : "orderDate";
             Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
             
             Page<Order> ordersPage = orderService.getOrdersByUserId(currentUser.getId(), pageable, startDate, endDate, bookName);
@@ -163,38 +163,29 @@ public class OrderController {
         if (currentUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "用户未登录"));
         }
+        
+        // 如果Kafka不可用，回退到同步创建
+        if (!isKafkaAvailable()) {
+            return createOrderFromCart(currentUser, payload);
+        }
+        
         try {
             String shippingAddress = (payload != null && payload.containsKey("shippingAddress"))
                 ? payload.get("shippingAddress") : "用户未提供地址";
 
-            // 获取购物车商品信息
             List<CartItem> cartItems = cartService.getCartItemsByUserId(currentUser.getId());
             if (cartItems == null || cartItems.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "购物车为空，无法创建订单"));
             }
 
-            // 构建Kafka消息
             String requestId = UUID.randomUUID().toString();
             OrderRequestMessage requestMessage = buildOrderRequestMessage(requestId, "CART_ORDER", currentUser, shippingAddress, cartItems);
 
-            // 发送到Kafka
             orderRequestKafkaTemplate.send("order-requests", requestId, requestMessage);
-            System.out.println("=== ASYNC ORDER REQUEST SENT ===");
-            System.out.println("Request ID: " + requestId);
-            try {
-                String jsonMessage = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(requestMessage);
-                System.out.println("Message JSON: " + jsonMessage);
-            } catch (Exception e) {
-                System.out.println("Message JSON: " + requestMessage.toString());
-            }
 
-            // 通过WebSocket推送订单创建通知
-            webSocketNotificationService.notifyOrderCreated(
-                currentUser.getId(),
-                null, // orderId将在处理完成后推送
-                BigDecimal.ZERO, // 总价将在处理完成后推送
-                requestId
-            );
+            if (webSocketNotificationService != null) {
+                webSocketNotificationService.notifyOrderCreated(currentUser.getId(), null, BigDecimal.ZERO, requestId);
+            }
 
             return ResponseEntity.accepted().body(Map.of(
                 "message", "订单请求已提交，正在异步处理",
@@ -213,6 +204,12 @@ public class OrderController {
         if (currentUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "用户未登录"));
         }
+        
+        // 如果Kafka不可用，回退到同步创建
+        if (!isKafkaAvailable()) {
+            return createOrderForSingleBook(currentUser, payload);
+        }
+        
         try {
             Long bookId = Long.parseLong(payload.get("bookId").toString());
             int quantity = 1;
@@ -229,37 +226,17 @@ public class OrderController {
 
             String shippingAddress = payload.getOrDefault("shippingAddress", "用户未提供地址").toString();
 
-            // 获取书籍信息
             Book book = bookDao.findById(bookId)
                 .orElseThrow(() -> new IllegalArgumentException("未找到书籍ID: " + bookId));
 
-            // 检查库存（注意：这里不需要注入 inventoryService，因为订单服务会检查）
-            // if (book.getStock() < quantity) {
-            //     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "书籍库存不足: " + book.getTitle()));
-            // }
-
-            // 构建Kafka消息
             String requestId = UUID.randomUUID().toString();
             OrderRequestMessage requestMessage = buildOrderRequestMessage(requestId, "SINGLE_BOOK_ORDER", currentUser, shippingAddress, book, quantity);
 
-            // 发送到Kafka
             orderRequestKafkaTemplate.send("order-requests", requestId, requestMessage);
-            System.out.println("=== ASYNC SINGLE ORDER REQUEST SENT ===");
-            System.out.println("Request ID: " + requestId);
-            try {
-                String jsonMessage = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(requestMessage);
-                System.out.println("Message JSON: " + jsonMessage);
-            } catch (Exception e) {
-                System.out.println("Message JSON: " + requestMessage.toString());
-            }
 
-            // 通过WebSocket推送订单创建通知
-            webSocketNotificationService.notifyOrderCreated(
-                currentUser.getId(),
-                null, // orderId将在处理完成后推送
-                BigDecimal.ZERO, // 总价将在处理完成后推送
-                requestId
-            );
+            if (webSocketNotificationService != null) {
+                webSocketNotificationService.notifyOrderCreated(currentUser.getId(), null, BigDecimal.ZERO, requestId);
+            }
 
             return ResponseEntity.accepted().body(Map.of(
                 "message", "单品订单请求已提交，正在异步处理",
@@ -320,4 +297,4 @@ public class OrderController {
 
         return message;
     }
-} 
+}

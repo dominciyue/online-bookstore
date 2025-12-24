@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,9 +20,11 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 /**
  * Redis 配置类
  * 配置 Redis 连接和序列化策略
+ * 当 bookstore.cache.enabled=true 时才启用
  */
 @Configuration
 @EnableCaching
+@ConditionalOnProperty(name = "bookstore.cache.enabled", havingValue = "true", matchIfMissing = true)
 public class RedisConfig {
     
     private static final Logger logger = LoggerFactory.getLogger(RedisConfig.class);

@@ -1,0 +1,46 @@
+# Docker ignore file
+# 排除不需要复制到 Docker 镜像的文件
+
+# 构建输出
+target/
+*.jar
+!target/*.jar
+
+# IDE 配置
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Docker 数据目录
+docker-data/
+docker-init/
+
+# 日志
+logs/
+*.log
+
+# 本地配置
+*.local
+.env
+.env.*
+
+# Node modules (if any)
+node_modules/
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Maven wrapper (可选，如果不想使用宿主机的 Maven)
+# .mvn/
+# mvnw
+# mvnw.cmd
+
