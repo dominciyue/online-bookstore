@@ -31,3 +31,10 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Docker Data (不应提交到Git) ###
+docker-data/
+*.sock
+
+### Embedded Git Repositories ###
+bookstore_mcp_server/

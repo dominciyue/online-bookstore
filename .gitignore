@@ -101,6 +101,14 @@ dump.rdb
 kafka_*/
 kafka-logs/
 
+# Docker Data (不应提交到Git)
+online-bookstore-backend/docker-data/
+**/docker-data/
+*.sock
+
+# Embedded Git Repositories
+bookstore_mcp_server/
+
 # =========================
 # End of file
 # =========================
