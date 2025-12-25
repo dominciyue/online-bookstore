@@ -1,0 +1,10 @@
+﻿# Category: Web_Dev
+# Total Books: 1
+# ==========================================
+
+--- Book ID: 4 ---
+Title: JavaScript高级程序设计 (第4版)
+Author: Matt Frisbie
+Description: 前端开发必备红宝书，详细讲解JavaScript语言核心及高级特性。
+
+

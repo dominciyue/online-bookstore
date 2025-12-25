@@ -1,0 +1,30 @@
+# Hadoop MapReduce Project .gitignore
+
+# Maven build output
+target/
+dependency-reduced-pom.xml
+
+# MapReduce output
+output/
+*.part-r-*
+
+# Input data (can be regenerated from database)
+# Uncomment if you don't want to commit sample data
+# input/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+
